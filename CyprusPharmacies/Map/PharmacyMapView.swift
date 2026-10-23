@@ -52,6 +52,9 @@ struct PharmacyMapView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, MKMapViewDelegate {
+        /// About 3 km top to bottom: close enough for single pins, not clusters.
+        static let streetSpan: CLLocationDegrees = 0.03
+
         var parent: PharmacyMapView?
         var appliedCommand: UUID?
         private var shownIDs: [String] = []
@@ -91,10 +94,14 @@ struct PharmacyMapView: UIViewRepresentable {
             case .showIsland:
                 mapView.setRegion(PharmacyMapView.cyprus, animated: true)
 
-            case let .focus(coordinate, bottomInset):
+            case let .focus(coordinate, bottomInset, zoomIn):
                 let height = mapView.bounds.height
                 guard height > 0 else { return }
-                let span = mapView.region.span
+                var span = mapView.region.span
+                if zoomIn && span.latitudeDelta > Self.streetSpan {
+                    span = MKCoordinateSpan(latitudeDelta: Self.streetSpan,
+                                            longitudeDelta: span.longitudeDelta * Self.streetSpan / span.latitudeDelta)
+                }
                 // Put the pin in the middle of the strip between the top bar and the sheet.
                 let targetY = (topInset + (height - bottomInset)) / 2
                 let degreesPerPoint = span.latitudeDelta / height
@@ -140,6 +147,8 @@ struct PharmacyMapView: UIViewRepresentable {
                 mapView.deselectAnnotation(cluster, animated: false)
                 zoom(into: cluster, on: mapView)
             } else if let annotation = view.annotation as? PharmacyAnnotation {
+                // A selection made in `syncSelection` comes back here too: reporting it again would drop the list's zoom-in.
+                guard parent?.selected?.id != annotation.pharmacy.id else { return }
                 parent?.onSelect(annotation.pharmacy)
             } else if let annotation = view.annotation {
                 mapView.deselectAnnotation(annotation, animated: false)

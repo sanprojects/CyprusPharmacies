@@ -26,6 +26,25 @@ struct Pharmacy: Codable, Hashable, Identifiable {
         CLLocationCoordinate2D(latitude: lat, longitude: lng)
     }
 
+    /// Greek name shown under the title; nil when the feed has none or it repeats `name`.
+    var greekName: String? {
+        let greek = originalname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !greek.isEmpty,
+              greek.compare(name.trimmingCharacters(in: .whitespacesAndNewlines), options: .caseInsensitive) != .orderedSame
+        else { return nil }
+        return greek
+    }
+
+    /// Apple Maps link to the pharmacy, for sharing; opens in a browser where Maps is missing.
+    var appleMapsURL: URL? {
+        var components = URLComponents(string: "https://maps.apple.com/")
+        components?.queryItems = [
+            URLQueryItem(name: "ll", value: String(format: "%.6f,%.6f", locale: Locale(identifier: "en_US_POSIX"), lat, lng)),
+            URLQueryItem(name: "q", value: name.isEmpty ? "Pharmacy" : name),
+        ]
+        return components?.url
+    }
+
     /// Numbers offered by the Call button, in the order the spec lists them. Empty numbers are skipped.
     var phoneOptions: [PhoneOption] {
         [PhoneOption(kind: .pharmacy, number: pharmacyPhone),

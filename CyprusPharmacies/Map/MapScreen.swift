@@ -7,15 +7,28 @@ import SwiftUI
 import UIKit
 
 struct MapScreen: View {
+    /// Sheets other than Details; only one sheet is up at a time.
+    enum Sheet: String, Identifiable {
+        case info
+        case list
+        var id: String { rawValue }
+    }
+
+    /// Map chrome stops growing here, so the date bar and buttons leave room for the map.
+    private static let chromeTextLimit = DynamicTypeSize.xxxLarge
+    private static let maxSheetFraction: CGFloat = 0.75
+
     @Bindable var model: MapViewModel
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
     @State private var topBarBottom: CGFloat = 0
     @State private var sheetHeight: CGFloat = 0
-    @State private var isInfoShown = false
-    /// Info was tapped while Details was up: show it once that sheet is gone.
-    @State private var showsInfoAfterDetails = false
+    @State private var sheet: Sheet?
+    /// Asked for while Details was up: shown once that sheet is gone.
+    @State private var sheetAfterDetails: Sheet?
+    /// Tapped in the list: selected once the list is gone.
+    @State private var pharmacyAfterSheet: Pharmacy?
     @State private var hasStarted = false
 
     var body: some View {
@@ -51,22 +64,40 @@ struct MapScreen: View {
                 if let pharmacy = model.selected {
                     PharmacyDetailsView(
                         pharmacy: pharmacy,
+                        distance: model.distance(to: pharmacy),
                         onHeightChange: { height in
-                            sheetHeight = height
-                            model.focus(on: pharmacy, bottomInset: height + root.safeAreaInsets.bottom)
+                            // Taller content scrolls inside a sheet capped at 3/4 of the screen.
+                            sheetHeight = min(height, root.size.height * Self.maxSheetFraction)
+                            model.focus(on: pharmacy, bottomInset: sheetHeight + root.safeAreaInsets.bottom)
                         },
                         onClose: { model.select(nil) }
                     )
                     .id(pharmacy.id)
-                    .presentationDetents([.height(sheetHeight > 0 ? min(sheetHeight, root.size.height * 0.75) : 320)])
+                    .presentationDetents([.height(sheetHeight > 0 ? sheetHeight : 320)])
                     .presentationDragIndicator(.visible)
                     .presentationBackgroundInteraction(.enabled)
                 }
             }
         }
-        .sheet(isPresented: $isInfoShown) {
-            InfoView()
+        .sheet(item: $sheet, onDismiss: sheetDismissed) { sheet in
+            switch sheet {
+            case .info:
+                InfoView()
+                    .presentationDetents([.medium, .large])
+            case .list:
+                PharmacyListView(
+                    title: model.dateTitle,
+                    pharmacies: model.sortedPharmacies,
+                    isLoading: model.isLoading,
+                    distance: { model.distance(to: $0) },
+                    onSelect: { pharmacy in
+                        pharmacyAfterSheet = pharmacy
+                        self.sheet = nil
+                    }
+                )
                 .presentationDetents([.medium, .large])
+                .task { await model.refreshUserLocation() }
+            }
         }
         .alert("Location access is off", isPresented: $model.isLocationDeniedAlertShown) {
             Button("Open Settings") {
@@ -106,6 +137,25 @@ struct MapScreen: View {
             dayButton("Previous day", systemImage: "chevron.left", enabled: model.canGoToPreviousDay) {
                 model.previousDay()
             }
+            dayMenu
+            dayButton("Next day", systemImage: "chevron.right", enabled: model.canGoToNextDay) {
+                model.nextDay()
+            }
+        }
+        .padding(6)
+        .glassBackground(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .dynamicTypeSize(...Self.chromeTextLimit)
+    }
+
+    /// Tapping the date opens a menu of all days the feed has, instead of stepping with the arrows.
+    private var dayMenu: some View {
+        Menu {
+            Picker("Day", selection: Binding(get: { model.offset }, set: { model.show(offset: $0) })) {
+                ForEach(DutyCalendar.offsets, id: \.self) { offset in
+                    Text(model.calendar.menuTitle(offset: offset)).tag(offset)
+                }
+            }
+        } label: {
             VStack(spacing: 2) {
                 Text(model.dateTitle)
                     .font(.headline)
@@ -119,15 +169,18 @@ struct MapScreen: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
-            dayButton("Next day", systemImage: "chevron.right", enabled: model.canGoToNextDay) {
-                model.nextDay()
-            }
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
         }
-        .padding(6)
-        .glassBackground(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // Plain style keeps the date in label colors instead of the accent color.
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+        .accessibilityHint("Choose another day")
+        .accessibilityIdentifier("dayMenu")
     }
 
     private func dayButton(_ title: String, systemImage: String, enabled: Bool, action: @escaping () -> Void) -> some View {
@@ -143,14 +196,9 @@ struct MapScreen: View {
     /// Info and location buttons under the date bar, so the Details sheet never covers them.
     private var controls: some View {
         VStack(spacing: 0) {
-            roundButton("Info", systemImage: "info.circle") {
-                if model.selected != nil {
-                    showsInfoAfterDetails = true
-                    model.select(nil)
-                } else {
-                    isInfoShown = true
-                }
-            }
+            roundButton("Info", systemImage: "info.circle") { show(.info) }
+            Divider().frame(width: 44)
+            roundButton("List of pharmacies", systemImage: "list.bullet") { show(.list) }
             Divider().frame(width: 44)
             roundButton("Show my location", systemImage: model.showsUserLocation ? "location.fill" : "location") {
                 model.select(nil)
@@ -158,6 +206,7 @@ struct MapScreen: View {
             }
         }
         .glassBackground(in: RoundedRectangle(cornerRadius: 12, style: .continuous), interactive: true)
+        .dynamicTypeSize(...Self.chromeTextLimit)
         .padding(.trailing, 12)
         .padding(.top, topBarBottom + 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -191,11 +240,28 @@ struct MapScreen: View {
         )
     }
 
+    /// Two sheets cannot be up together: Details goes away first.
+    private func show(_ next: Sheet) {
+        if model.selected != nil {
+            sheetAfterDetails = next
+            model.select(nil)
+        } else {
+            sheet = next
+        }
+    }
+
     private func detailsDismissed() {
         sheetHeight = 0
-        if showsInfoAfterDetails {
-            showsInfoAfterDetails = false
-            isInfoShown = true
+        if let next = sheetAfterDetails {
+            sheetAfterDetails = nil
+            sheet = next
+        }
+    }
+
+    private func sheetDismissed() {
+        if let pharmacy = pharmacyAfterSheet {
+            pharmacyAfterSheet = nil
+            model.select(pharmacy, zoomIn: true)
         }
     }
 }

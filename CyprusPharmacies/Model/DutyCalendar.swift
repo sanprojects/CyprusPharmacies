@@ -44,6 +44,18 @@ struct DutyCalendar {
         return formatter.string(from: date)
     }
 
+    /// Item of the day menu: "Today, Fri 23 Oct", "Tomorrow, Sat 24 Oct", then "Sun 25 Oct".
+    func menuTitle(offset: Int) -> String {
+        let day = calendar.date(byAdding: .day, value: offset, to: now()) ?? now()
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = timeZone
+        formatter.locale = Locale(identifier: "en_GB")
+        formatter.dateFormat = "EEE d MMM"
+        let date = formatter.string(from: day)
+        return offset < 2 ? "\(relativeTitle(offset: offset)), \(date)" : date
+    }
+
     func relativeTitle(offset: Int) -> String {
         switch offset {
         case 0: return "Today"

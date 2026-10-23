@@ -241,6 +241,31 @@ final class MapViewModelTests: XCTestCase {
         XCTAssertEqual(nearest, CLLocationCoordinate2D(latitude: 35.17, longitude: 33.36))
     }
 
+    func testListIsNearestFirstOnceLocationIsKnown() async {
+        api.results[0] = .success([pharmacy("B far", lat: 34.7, lng: 33.0), pharmacy("C near", lat: 35.17, lng: 33.36),
+                                   pharmacy("A mid", lat: 35.0, lng: 33.2)])
+        location.access = .authorized
+        location.location = CLLocation(latitude: 35.16, longitude: 33.35)
+        let model = makeModel()
+        model.start()
+        await settle()
+
+        XCTAssertEqual(model.sortedPharmacies.map(\.name), ["C near", "A mid", "B far"])
+        XCTAssertNotNil(model.distance(to: model.pharmacies[0]))
+        XCTAssertEqual(model.mapCommand?.kind, .showIsland, "a silent location update does not move the map")
+    }
+
+    func testListIsByNameWithoutLocationAndNeverAsksForAccess() async {
+        api.results[0] = .success([pharmacy("b"), pharmacy("C"), pharmacy("A")])
+        let model = makeModel()
+        model.start()
+        await settle()
+
+        XCTAssertEqual(model.sortedPharmacies.map(\.name), ["A", "b", "C"])
+        XCTAssertNil(model.distance(to: model.pharmacies[0]))
+        XCTAssertEqual(location.accessRequests, 0)
+    }
+
     func testLocateUserDeniedShowsAlert() async {
         location.accessResult = .denied
         let model = makeModel()
@@ -301,7 +326,10 @@ private final class FakeLocation: LocationProviding {
     var accessResult: LocationService.Access = .notDetermined
     var location: CLLocation?
 
+    private(set) var accessRequests = 0
+
     func requestAccess() async -> LocationService.Access {
+        accessRequests += 1
         access = accessResult
         return accessResult
     }

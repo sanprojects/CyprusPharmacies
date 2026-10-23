@@ -57,6 +57,17 @@ final class PhoneOptionTests: XCTestCase {
         let pharmacy = try PharmacyAPI.decode(Fixture.data("today"))[2]
         XCTAssertTrue(pharmacy.phoneOptions.isEmpty)
     }
+
+    func testAppleMapsURLForSharing() {
+        let pharmacy = Pharmacy(date: "", name: "Polis & Co", lat: 35.0361, lng: 32.4251)
+        XCTAssertEqual(pharmacy.appleMapsURL?.absoluteString, "https://maps.apple.com/?ll=35.036100,32.425100&q=Polis%20%26%20Co")
+    }
+
+    func testGreekNameOnlyWhenItDiffers() {
+        XCTAssertEqual(Pharmacy(date: "", originalname: " ΠΑΠΑΔΟΠΟΥΛΟΣ ", name: "PAPADOPOULOS", lat: 0, lng: 0).greekName, "ΠΑΠΑΔΟΠΟΥΛΟΣ")
+        XCTAssertNil(Pharmacy(date: "", originalname: "Papadopoulos", name: "PAPADOPOULOS", lat: 0, lng: 0).greekName)
+        XCTAssertNil(Pharmacy(date: "", originalname: "  ", name: "PAPADOPOULOS", lat: 0, lng: 0).greekName)
+    }
 }
 
 final class DutyCalendarTests: XCTestCase {
@@ -76,6 +87,9 @@ final class DutyCalendarTests: XCTestCase {
         XCTAssertEqual(calendar.relativeTitle(offset: 0), "Today")
         XCTAssertEqual(calendar.relativeTitle(offset: 1), "Tomorrow")
         XCTAssertEqual(calendar.relativeTitle(offset: 7), "In 7 days")
+        XCTAssertEqual(calendar.menuTitle(offset: 0), "Today, Sat 24 Oct", "01:30 in Nicosia is already the 24th")
+        XCTAssertEqual(calendar.menuTitle(offset: 1), "Tomorrow, Sun 25 Oct")
+        XCTAssertEqual(calendar.menuTitle(offset: 10), "Tue 3 Nov")
     }
 
     func testOffsetRange() {

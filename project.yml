@@ -37,7 +37,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_FILE: CyprusPharmacies/Info.plist
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: CyprusNightPharmacies
+        INFOPLIST_KEY_CFBundleDisplayName: Night Pharmacy
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "To show the nearest duty pharmacy and build a route to the chosen pharmacy"
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES

@@ -11,8 +11,9 @@ import Observation
 struct MapCommand: Equatable {
     enum Kind: Equatable {
         case showIsland
-        /// Center on a pharmacy so it stays visible above a sheet of `bottomInset` points.
-        case focus(CLLocationCoordinate2D, bottomInset: CGFloat)
+        /// Center on a pharmacy so it stays visible above a sheet of `bottomInset` points;
+        /// `zoomIn` brings it out of a cluster when it was picked in the list.
+        case focus(CLLocationCoordinate2D, bottomInset: CGFloat, zoomIn: Bool)
         /// Fit the user and, when known, the nearest pharmacy.
         case showUser(CLLocationCoordinate2D, nearest: CLLocationCoordinate2D?)
     }
@@ -54,6 +55,8 @@ final class MapViewModel {
     private(set) var blocking: Blocking?
     private(set) var mapCommand: MapCommand? = MapCommand(kind: .showIsland)
     private(set) var showsUserLocation = false
+    /// Last known position; set only once location access is granted.
+    private(set) var userLocation: CLLocation?
     var selected: Pharmacy?
     var isLocationDeniedAlertShown = false
 
@@ -68,6 +71,8 @@ final class MapViewModel {
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var lastShownOffset: Int?
+    /// The selection came from the list, where its pin may be hidden in a cluster.
+    @ObservationIgnored private var zoomsToSelection = false
 
     init(api: PharmacyFetching,
          cache: PharmacyCaching,
@@ -102,6 +107,7 @@ final class MapViewModel {
     func start() {
         cache.removeDays(before: calendar.todayKey)
         load()
+        Task { await refreshUserLocation() }
     }
 
     func previousDay() { show(offset: offset - 1) }
@@ -210,12 +216,13 @@ final class MapViewModel {
 
     // MARK: - Map
 
-    func select(_ pharmacy: Pharmacy?) {
+    func select(_ pharmacy: Pharmacy?, zoomIn: Bool = false) {
         selected = pharmacy
+        zoomsToSelection = zoomIn && pharmacy != nil
     }
 
     func focus(on pharmacy: Pharmacy, bottomInset: CGFloat) {
-        mapCommand = MapCommand(kind: .focus(pharmacy.coordinate, bottomInset: bottomInset))
+        mapCommand = MapCommand(kind: .focus(pharmacy.coordinate, bottomInset: bottomInset, zoomIn: zoomsToSelection))
     }
 
     func nearestPharmacy(to location: CLLocation) -> Pharmacy? {
@@ -223,6 +230,26 @@ final class MapViewModel {
             location.distance(from: CLLocation(latitude: $0.lat, longitude: $0.lng))
                 < location.distance(from: CLLocation(latitude: $1.lat, longitude: $1.lng))
         }
+    }
+
+    /// Straight-line distance from the user, when their position is known.
+    func distance(to pharmacy: Pharmacy) -> CLLocationDistance? {
+        userLocation?.distance(from: CLLocation(latitude: pharmacy.lat, longitude: pharmacy.lng))
+    }
+
+    /// The day's pharmacies for the list: nearest first when the user's position is known, otherwise by name.
+    var sortedPharmacies: [Pharmacy] {
+        if userLocation != nil {
+            return pharmacies.sorted { (distance(to: $0) ?? 0) < (distance(to: $1) ?? 0) }
+        }
+        return pharmacies.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// Updates `userLocation` without moving the map and without asking for access.
+    func refreshUserLocation() async {
+        guard location.access == .authorized else { return }
+        showsUserLocation = true
+        if let here = await location.currentLocation() { userLocation = here }
     }
 
     func locateUser() async {
@@ -237,6 +264,7 @@ final class MapViewModel {
             showsUserLocation = true
         }
         guard let here = await location.currentLocation() else { return }
+        userLocation = here
         mapCommand = MapCommand(kind: .showUser(here.coordinate, nearest: nearestPharmacy(to: here)?.coordinate))
     }
 }
