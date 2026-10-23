@@ -548,7 +548,6 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Night Pharmacy";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "To show the nearest duty pharmacy and build a route to the chosen pharmacy";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -607,7 +606,6 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Night Pharmacy";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "To show the nearest duty pharmacy and build a route to the chosen pharmacy";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
