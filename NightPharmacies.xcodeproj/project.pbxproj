@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A2CD9BF549088DCEED495BC /* NightPharmaciesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F7DB036884F7DD23AD4208 /* NightPharmaciesUITests.swift */; };
 		0B957BBAFE199ECC28D22742 /* Navigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6990D87E13DE39CE6EE6DD59 /* Navigator.swift */; };
 		0BF312B73BC571D3DDEC95E8 /* PharmacyMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF30D32F5EADF38DCBDB7B64 /* PharmacyMapView.swift */; };
 		1693226A6FAAB8DDB2CDA8A6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B0A002B748EF75F019FB0D6D /* Assets.xcassets */; };
@@ -43,6 +44,13 @@
 			remoteGlobalIDString = CD12A8D6DF0BB8017B8E7E92;
 			remoteInfo = NightPharmacies;
 		};
+		6CAC0E0AFA375F1B7F4EAD78 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A507F4E220872C0360C23849 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CD12A8D6DF0BB8017B8E7E92;
+			remoteInfo = NightPharmacies;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -73,7 +81,9 @@
 		BEDC7B6D15FDA9AA75EAD137 /* PharmacyDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PharmacyDetailsView.swift; sourceTree = "<group>"; };
 		BF30D32F5EADF38DCBDB7B64 /* PharmacyMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PharmacyMapView.swift; sourceTree = "<group>"; };
 		C412E056153B579ACDFEDE7C /* ModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
+		CB0662C05DD72C2866E05581 /* NightPharmaciesUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NightPharmaciesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD6E96D10FAB7CC74A27C622 /* DutyCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DutyCalendar.swift; sourceTree = "<group>"; };
+		F4F7DB036884F7DD23AD4208 /* NightPharmaciesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightPharmaciesUITests.swift; sourceTree = "<group>"; };
 		F97B1D0E2B9281B8E171A417 /* MapViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapViewModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -110,6 +120,7 @@
 			children = (
 				9ECD250AF61E4DA8E91EDB85 /* NightPharmacies.app */,
 				97F07FAED6FB2C4FF5C39225 /* NightPharmaciesTests.xctest */,
+				CB0662C05DD72C2866E05581 /* NightPharmaciesUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -141,6 +152,14 @@
 				8CAAC7A1A1C25B0A4253C071 /* Pharmacy.swift */,
 			);
 			path = Model;
+			sourceTree = "<group>";
+		};
+		21CD413CF99472794FC5493B /* CyprusPharmaciesUITests */ = {
+			isa = PBXGroup;
+			children = (
+				F4F7DB036884F7DD23AD4208 /* NightPharmaciesUITests.swift */,
+			);
+			path = CyprusPharmaciesUITests;
 			sourceTree = "<group>";
 		};
 		2EE6C59BF03AB104FC001025 /* Details */ = {
@@ -232,6 +251,7 @@
 				EE3878457F0199F39B752DE5 /* Config */,
 				1D313BD3BCB3A77079DD439E /* CyprusPharmacies */,
 				EDFDB08F9DF269298E47FCFC /* CyprusPharmaciesTests */,
+				21CD413CF99472794FC5493B /* CyprusPharmaciesUITests */,
 				0DD4B3895F1A2B49350A314B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -239,6 +259,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		85A16EDDC6F6B603E4D65457 /* NightPharmaciesUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 631387568FAFFFFEEF69B444 /* Build configuration list for PBXNativeTarget "NightPharmaciesUITests" */;
+			buildPhases = (
+				729B4889BBCD6E6ED7B7A672 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FD8D7944A6484258AB8159D0 /* PBXTargetDependency */,
+			);
+			name = NightPharmaciesUITests;
+			packageProductDependencies = (
+			);
+			productName = NightPharmaciesUITests;
+			productReference = CB0662C05DD72C2866E05581 /* NightPharmaciesUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		8B21AB7FA5259DF96B166581 /* NightPharmaciesTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = C6408F119813D6A9EBFE8841 /* Build configuration list for PBXNativeTarget "NightPharmaciesTests" */;
@@ -287,6 +325,11 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					85A16EDDC6F6B603E4D65457 = {
+						DevelopmentTeam = 9R966FQAD6;
+						ProvisioningStyle = Automatic;
+						TestTargetID = CD12A8D6DF0BB8017B8E7E92;
+					};
 					8B21AB7FA5259DF96B166581 = {
 						DevelopmentTeam = 9R966FQAD6;
 						ProvisioningStyle = Automatic;
@@ -316,6 +359,7 @@
 			targets = (
 				CD12A8D6DF0BB8017B8E7E92 /* NightPharmacies */,
 				8B21AB7FA5259DF96B166581 /* NightPharmaciesTests */,
+				85A16EDDC6F6B603E4D65457 /* NightPharmaciesUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -348,6 +392,14 @@
 				4B94C9724908310C17F724D0 /* DutyHoursTests.swift in Sources */,
 				CE3AEC175C55E0520EDA8982 /* MapViewModelTests.swift in Sources */,
 				98287122AB47332FB9F8814A /* ModelTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		729B4889BBCD6E6ED7B7A672 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0A2CD9BF549088DCEED495BC /* NightPharmaciesUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -384,6 +436,11 @@
 			isa = PBXTargetDependency;
 			target = CD12A8D6DF0BB8017B8E7E92 /* NightPharmacies */;
 			targetProxy = 2AB2DFA2CF854C559C3E8965 /* PBXContainerItemProxy */;
+		};
+		FD8D7944A6484258AB8159D0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD12A8D6DF0BB8017B8E7E92 /* NightPharmacies */;
+			targetProxy = 6CAC0E0AFA375F1B7F4EAD78 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -515,6 +572,23 @@
 			};
 			name = Release;
 		};
+		B7E2436581D4B129E1BB4B90 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.elenakim.NightPharmaciesUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = NightPharmacies;
+			};
+			name = Release;
+		};
 		BE269441AC4A00566FDFD816 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 33CECCA1AF664582A9B3F348 /* App.xcconfig */;
@@ -601,6 +675,23 @@
 			};
 			name = Release;
 		};
+		FA94B04F9E6383E453D654D0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.elenakim.NightPharmaciesUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = NightPharmacies;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -609,6 +700,15 @@
 			buildConfigurations = (
 				BE269441AC4A00566FDFD816 /* Debug */,
 				512432B6A5A1FC4D33D4A8E7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		631387568FAFFFFEEF69B444 /* Build configuration list for PBXNativeTarget "NightPharmaciesUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FA94B04F9E6383E453D654D0 /* Debug */,
+				B7E2436581D4B129E1BB4B90 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

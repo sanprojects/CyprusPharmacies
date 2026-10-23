@@ -58,17 +58,32 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.elenakim.NightPharmaciesTests
 
+  NightPharmaciesUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: CyprusPharmaciesUITests
+    dependencies:
+      - target: NightPharmacies
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.elenakim.NightPharmaciesUITests
+        TEST_TARGET_NAME: NightPharmacies
+
 schemes:
   NightPharmacies:
     build:
       targets:
         NightPharmacies: all
         NightPharmaciesTests: [test]
+        NightPharmaciesUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
         - NightPharmaciesTests
+        - NightPharmaciesUITests
     archive:
       config: Release

@@ -35,6 +35,20 @@
                ReferencedContainer = "container:NightPharmacies.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "85A16EDDC6F6B603E4D65457"
+               BuildableName = "NightPharmaciesUITests.xctest"
+               BlueprintName = "NightPharmaciesUITests"
+               ReferencedContainer = "container:NightPharmacies.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -61,6 +75,17 @@
                BlueprintIdentifier = "8B21AB7FA5259DF96B166581"
                BuildableName = "NightPharmaciesTests.xctest"
                BlueprintName = "NightPharmaciesTests"
+               ReferencedContainer = "container:NightPharmacies.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "85A16EDDC6F6B603E4D65457"
+               BuildableName = "NightPharmaciesUITests.xctest"
+               BlueprintName = "NightPharmaciesUITests"
                ReferencedContainer = "container:NightPharmacies.xcodeproj">
             </BuildableReference>
          </TestableReference>

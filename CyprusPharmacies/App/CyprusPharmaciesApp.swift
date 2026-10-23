@@ -13,20 +13,27 @@ struct CyprusPharmaciesApp: App {
         ErrorReporter.shared.start()
 
         var api = PharmacyAPI()
+        var fetcher: PharmacyFetching = api
         var forcedOffline = false
-        let cache = PharmacyCache()
+        var cache = PharmacyCache()
         #if DEBUG
         // Launch arguments for manual checks, e.g. `-simulateOffline YES`, `-apiBaseURL https://…/missing.php`, `-resetCache YES`.
         let defaults = UserDefaults.standard
         if let override = defaults.string(forKey: "apiBaseURL"), let url = URL(string: override) {
             api.baseURL = url
+            fetcher = api
+        }
+        // UI tests pass the feed in the environment, and keep their days out of the real cache.
+        if let fixture = ProcessInfo.processInfo.environment["PHARMACIES_FIXTURE"] {
+            fetcher = FixturePharmacies(json: Data(fixture.utf8))
+            cache = PharmacyCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent("UITestCache"))
         }
         forcedOffline = defaults.bool(forKey: "simulateOffline")
         if defaults.bool(forKey: "resetCache") { cache.removeAll() }
         #endif
 
         _model = State(initialValue: MapViewModel(
-            api: api,
+            api: fetcher,
             cache: cache,
             network: NetworkMonitor(forcedOffline: forcedOffline),
             reporter: ErrorReporter.shared,
@@ -40,3 +47,18 @@ struct CyprusPharmaciesApp: App {
         }
     }
 }
+
+#if DEBUG
+/// The same pharmacies for every day.
+private struct FixturePharmacies: PharmacyFetching {
+    let json: Data
+
+    func url(offset: Int) -> URL {
+        URL(fileURLWithPath: "/fixture/\(offset)")
+    }
+
+    func pharmacies(offset: Int) async throws -> [Pharmacy] {
+        try PharmacyAPI.decode(json)
+    }
+}
+#endif
