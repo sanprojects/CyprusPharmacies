@@ -24,6 +24,7 @@
 		855863975658D92E21958061 /* CyprusPharmaciesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0847FD2130F82E363815F823 /* CyprusPharmaciesApp.swift */; };
 		98287122AB47332FB9F8814A /* ModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C412E056153B579ACDFEDE7C /* ModelTests.swift */; };
 		BAC11BD272103C31181F87BC /* today.json in Resources */ = {isa = PBXBuildFile; fileRef = 61A3A55FE9D17B15F93BE624 /* today.json */; };
+		CB2C280DCFF8BEF0B556D10A /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 429FEBD84FE1B3BC270C6CAC /* Glass.swift */; };
 		CE3AEC175C55E0520EDA8982 /* MapViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97B1D0E2B9281B8E171A417 /* MapViewModelTests.swift */; };
 		E523BC6135750FE42DCD74A5 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E0DFBE0E0C48CBE954F733 /* LocationService.swift */; };
 		F2023567B2ACC9BF0925DE17 /* ErrorReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED04C84DE8060E256378189 /* ErrorReporter.swift */; };
@@ -44,6 +45,7 @@
 		0847FD2130F82E363815F823 /* CyprusPharmaciesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CyprusPharmaciesApp.swift; sourceTree = "<group>"; };
 		290CD946DD4779291A03CF00 /* PharmacyAnnotationViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PharmacyAnnotationViews.swift; sourceTree = "<group>"; };
 		33CECCA1AF664582A9B3F348 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
+		429FEBD84FE1B3BC270C6CAC /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
 		46ED3A7CA8B91D480585DFE3 /* ErrorViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorViews.swift; sourceTree = "<group>"; };
 		4805EDEC6908E14D0A434449 /* MapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapViewModel.swift; sourceTree = "<group>"; };
 		5E8EDD9B5E815756FF4B4517 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
@@ -108,6 +110,7 @@
 				AEED976373EA3EF34546B5BD /* Map */,
 				20F856B797CEDCEA0DB5B6D8 /* Model */,
 				42C028B5614F5D71590CB848 /* Services */,
+				35B182C9F7AF2F6063C11E2C /* UI */,
 			);
 			path = CyprusPharmacies;
 			sourceTree = "<group>";
@@ -127,6 +130,14 @@
 				BEDC7B6D15FDA9AA75EAD137 /* PharmacyDetailsView.swift */,
 			);
 			path = Details;
+			sourceTree = "<group>";
+		};
+		35B182C9F7AF2F6063C11E2C /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				429FEBD84FE1B3BC270C6CAC /* Glass.swift */,
+			);
+			path = UI;
 			sourceTree = "<group>";
 		};
 		42C028B5614F5D71590CB848 /* Services */ = {
@@ -326,6 +337,7 @@
 				4C2D9DC24D766C2B0DEA8D30 /* DutyCalendar.swift in Sources */,
 				F2023567B2ACC9BF0925DE17 /* ErrorReporter.swift in Sources */,
 				22B3515B11F220898BF5D687 /* ErrorViews.swift in Sources */,
+				CB2C280DCFF8BEF0B556D10A /* Glass.swift in Sources */,
 				FBA9F8C74C62719874E142BD /* InfoView.swift in Sources */,
 				E523BC6135750FE42DCD74A5 /* LocationService.swift in Sources */,
 				6CE832EF8007FC8BA6AFDAF0 /* MapScreen.swift in Sources */,

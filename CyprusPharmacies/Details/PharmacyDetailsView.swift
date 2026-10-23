@@ -69,7 +69,8 @@ struct PharmacyDetailsView: View {
                     isCallDialogShown = true
                 } label: {
                     Label("Call", systemImage: "phone.fill")
-                        .frame(maxWidth: .infinity)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .disabled(pharmacy.phoneOptions.isEmpty)
                 .confirmationDialog("Call", isPresented: $isCallDialogShown, titleVisibility: .visible) {
@@ -83,16 +84,19 @@ struct PharmacyDetailsView: View {
                 Button {
                     isDirectionsDialogShown = true
                 } label: {
-                    Label("Get directions", systemImage: "car.fill")
-                        .frame(maxWidth: .infinity)
+                    Label("Directions", systemImage: "car.fill")
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .confirmationDialog("Get directions", isPresented: $isDirectionsDialogShown, titleVisibility: .visible) {
+                .confirmationDialog("Directions", isPresented: $isDirectionsDialogShown, titleVisibility: .visible) {
                     ForEach(Navigator.allCases) { navigator in
                         Button(navigator.rawValue) { navigator.open(to: pharmacy.coordinate) }
                     }
                 }
             }
-            .buttonStyle(.borderedProminent)
+            // Both buttons take the height of the taller one.
+            .fixedSize(horizontal: false, vertical: true)
+            .glassButtonStyle(prominent: true)
             .controlSize(.large)
             .padding(.top, 4)
         }

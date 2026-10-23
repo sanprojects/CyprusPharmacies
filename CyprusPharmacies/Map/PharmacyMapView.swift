@@ -61,9 +61,18 @@ struct PharmacyMapView: UIViewRepresentable {
             let ids = pharmacies.map(\.id)
             guard ids != shownIDs else { return }
             shownIDs = ids
-            mapView.removeAnnotations(Array(annotations.values))
-            annotations = Dictionary(pharmacies.map { ($0.id, PharmacyAnnotation($0)) }, uniquingKeysWith: { first, _ in first })
-            mapView.addAnnotations(Array(annotations.values))
+            // Keep annotations of pharmacies still on the map: replacing all of them breaks MapKit clustering.
+            let wanted = Dictionary(pharmacies.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            let gone = annotations.filter { wanted[$0.key] != $0.value.pharmacy }
+            mapView.removeAnnotations(Array(gone.values))
+            gone.keys.forEach { annotations[$0] = nil }
+            let added = wanted.compactMap { id, pharmacy -> PharmacyAnnotation? in
+                guard annotations[id] == nil else { return nil }
+                let annotation = PharmacyAnnotation(pharmacy)
+                annotations[id] = annotation
+                return annotation
+            }
+            mapView.addAnnotations(added)
         }
 
         func syncSelection(_ selected: Pharmacy?, on mapView: MKMapView) {

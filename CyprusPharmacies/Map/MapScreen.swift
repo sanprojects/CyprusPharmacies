@@ -127,8 +127,7 @@ struct MapScreen: View {
             }
         }
         .padding(6)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        .glassBackground(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func dayButton(_ title: String, systemImage: String, enabled: Bool, action: @escaping () -> Void) -> some View {
@@ -158,8 +157,7 @@ struct MapScreen: View {
                 Task { await model.locateUser() }
             }
         }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+        .glassBackground(in: RoundedRectangle(cornerRadius: 12, style: .continuous), interactive: true)
         .padding(.trailing, 12)
         .padding(.top, topBarBottom + 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -171,7 +169,7 @@ struct MapScreen: View {
                     .font(.subheadline)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(.regularMaterial, in: Capsule())
+                    .glassBackground(in: Capsule())
                     .padding(.bottom, 24)
             }
         }

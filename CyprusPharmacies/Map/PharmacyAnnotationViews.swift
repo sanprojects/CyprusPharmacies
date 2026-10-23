@@ -38,6 +38,15 @@ final class PharmacyAnnotationView: MKAnnotationView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override var annotation: MKAnnotation? {
+        willSet { clusteringIdentifier = MapStyle.clusteringIdentifier }
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        transform = .identity
+    }
+
     override func prepareForDisplay() {
         super.prepareForDisplay()
         clusteringIdentifier = MapStyle.clusteringIdentifier

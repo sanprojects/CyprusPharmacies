@@ -16,7 +16,7 @@ struct NoInternetView: View {
             Text("Connect to the internet to load the duty pharmacies for this day. Days you have already opened are available offline.")
         } actions: {
             Button("Try again", action: onRetry)
-                .buttonStyle(.borderedProminent)
+                .glassButtonStyle(prominent: true)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
@@ -40,12 +40,12 @@ struct LoadFailureView: View {
                 Button(action: onOK) {
                     Text("OK").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .glassButtonStyle(prominent: true)
                 .controlSize(.large)
             }
             .padding(24)
             .frame(maxWidth: 320)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .glassBackground(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .padding(32)
         }
         .accessibilityAddTraits(.isModal)
