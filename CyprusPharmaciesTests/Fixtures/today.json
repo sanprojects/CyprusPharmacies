@@ -1,0 +1,38 @@
+[
+  {
+    "date": "2026-10-26",
+    "originalname": "Σολωμού Ουρανία",
+    "name": "Solomoy Oyrania",
+    "address": "4 Strovolou & Pythonos Ave., Strovolos (Next to Glass Apartment Building)",
+    "originalAddress": "Λεωφ.Στροβόλου & Πύθωνος 4, Στρόβολος (Δίπλα από Γυάλινη Πολυκατοικία)",
+    "pharmacyPhone": "+35722313123",
+    "homePhone": "+35722283622",
+    "lat": 35.1416276,
+    "lng": 33.3409912,
+    "gesyId": "",
+    "description": "Works until 8:00 AM 2026-10-27\nCall before you go!"
+  },
+  {
+    "date": "2026-10-26",
+    "originalname": "Παπαδόπουλος Γιώργος",
+    "name": "Papadopoulos Giorgos",
+    "address": "12 Makariou Ave., Limassol",
+    "originalAddress": null,
+    "pharmacyPhone": "",
+    "homePhone": "99 123-456",
+    "lat": 34.6841,
+    "lng": 33.0379
+  },
+  {
+    "date": "2026-10-26",
+    "name": "No Phones",
+    "address": "1 Test St., Larnaca",
+    "originalAddress": "",
+    "pharmacyPhone": "",
+    "homePhone": " ",
+    "lat": 34.9229,
+    "lng": 33.6233,
+    "gesyId": "",
+    "description": ""
+  }
+]

@@ -1,0 +1,74 @@
+name: NightPharmacies
+options:
+  bundleIdPrefix: com.elenakim
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+packages:
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: 9.31.0
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: 9R966FQAD6
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "2.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+
+targets:
+  NightPharmacies:
+    type: application
+    platform: iOS
+    sources:
+      - path: CyprusPharmacies
+    configFiles:
+      Debug: Config/App.xcconfig
+      Release: Config/App.xcconfig
+    dependencies:
+      - package: Sentry
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.elenakim.NightPharmacies
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_FILE: CyprusPharmacies/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: CyprusNightPharmacies
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "To show the nearest duty pharmacy and build a route to the chosen pharmacy"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+
+  NightPharmaciesTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CyprusPharmaciesTests
+    dependencies:
+      - target: NightPharmacies
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.elenakim.NightPharmaciesTests
+
+schemes:
+  NightPharmacies:
+    build:
+      targets:
+        NightPharmacies: all
+        NightPharmaciesTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - NightPharmaciesTests
+    archive:
+      config: Release

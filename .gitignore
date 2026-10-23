@@ -91,3 +91,7 @@ fastlane/test_output
 iOSInjectionProject/
 NightPharmacies.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 NightPharmacies.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+
+# Local secrets (Sentry DSN, auth tokens)
+Config/Secrets.xcconfig
+.sentryclirc

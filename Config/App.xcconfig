@@ -1,0 +1,8 @@
+// Build settings shared by Debug and Release.
+// Secrets live in Config/Secrets.xcconfig, which is git-ignored.
+// Copy Config/Secrets.example.xcconfig to Config/Secrets.xcconfig and fill it in.
+// Without it the app builds and runs with Sentry disabled.
+
+SENTRY_DSN =
+
+#include? "Secrets.xcconfig"
