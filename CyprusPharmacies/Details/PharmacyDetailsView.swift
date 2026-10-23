@@ -131,8 +131,10 @@ struct PharmacyDetailsView: View {
     private func headerIcon(_ systemImage: String) -> some View {
         Image(systemName: systemImage)
             .font(.title2)
-            .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(.secondary)
+            // Gray glyph on a filled circle, as Apple's sheets have; explicit colors, since in a button
+            // `.secondary` is a shade of the accent color.
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(Color(.secondaryLabel), Color(.systemFill))
             // Big enough to hit, without crowding the name at the largest sizes.
             .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
@@ -195,7 +197,8 @@ struct PharmacyDetailsView: View {
         request.source = .forCurrentLocation()
         request.destination = Self.mapItem(at: pharmacy.coordinate)
         request.transportType = .automobile
-        // On failure the row keeps the straight-line distance.
+        // On failure the row keeps the straight-line distance. MapKit has no routing in Cyprus yet
+        // (FAILED_NO_RESULT, October 2026), so there this is the usual case.
         travelTime = try? await MKDirections(request: request).calculateETA().expectedTravelTime
     }
 
