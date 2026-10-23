@@ -35,7 +35,7 @@ enum MapStyle {
 /// Markers drawn in code, so they are sharp at every size: a green glass drop with a white rim, a soft top highlight
 /// and a shadow; the pin has the usual tail, its tip on the coordinate.
 enum MarkerArt {
-    private static let shadowPadding: CGFloat = 3
+    static let shadowPadding: CGFloat = 3
     private static let rim: CGFloat = 2
 
     /// A pin whose head is `diameter` wide; `tipOffset` is where the tip sits below the image center.
@@ -71,6 +71,11 @@ enum MarkerArt {
                       in: context.cgContext, scale: 1)
             content(circle)
         }
+    }
+
+    /// A transparent image: it gives a glass marker its frame, as the drawn one would.
+    static func clear(size: CGSize) -> UIImage {
+        UIGraphicsImageRenderer(size: size).image { _ in }
     }
 
     private static func drawGlass(_ shape: UIBezierPath, head: CGRect, colors: [UIColor], in cg: CGContext, scale: CGFloat) {
@@ -118,13 +123,65 @@ enum MarkerArt {
     }
 }
 
+/// A translucent Liquid Glass marker, the map showing through it tinted light green. Glass takes no free outline, so a
+/// pin is a round head and a rounded square turned on its corner below it, which the container melts into one drop.
+@available(iOS 26, *)
+final class GlassMarkerView: UIVisualEffectView {
+    /// Content goes into its `contentView`.
+    let head = UIVisualEffectView()
+    private let tail = UIVisualEffectView()
+
+    init() {
+        super.init(effect: UIGlassContainerEffect())
+        isUserInteractionEnabled = false
+        head.cornerConfiguration = .capsule()
+        tail.transform = CGAffineTransform(rotationAngle: .pi / 4)
+        contentView.addSubview(tail)
+        contentView.addSubview(head)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    /// A pin whose tail ends at `tip`, or a round badge when `tip` is nil.
+    func show(head frame: CGRect, tip: CGPoint?, highContrast: Bool) {
+        let container = UIGlassContainerEffect()
+        container.spacing = frame.width * 0.2
+        effect = container
+        head.effect = Self.glass(highContrast: highContrast)
+        head.frame = frame
+        tail.isHidden = tip == nil
+        guard let tip else { return }
+        let side = frame.width * 0.42
+        tail.effect = Self.glass(highContrast: highContrast)
+        tail.bounds = CGRect(x: 0, y: 0, width: side, height: side)
+        tail.cornerConfiguration = .corners(radius: .fixed(side * 0.18))
+        // Its lower corner, rounded off, ends on the tip.
+        tail.center = CGPoint(x: tip.x, y: tip.y - side * 0.66)
+    }
+
+    private static func glass(highContrast: Bool) -> UIGlassEffect {
+        let effect = UIGlassEffect()
+        effect.tintColor = highContrast
+            ? MapStyle.markerColors(highContrast: true)[1].withAlphaComponent(0.85)
+            : MapStyle.lightGreen.withAlphaComponent(0.6)
+        return effect
+    }
+}
+
 final class PharmacyAnnotationView: MKAnnotationView {
     private static let diameter: CGFloat = 30
     private static let selectedScale: CGFloat = 1.5
     /// Pins by Increase Contrast; the selected one is drawn at its size, so it stays sharp instead of a stretched bitmap.
     private static let pins = [false, true].map { MarkerArt.pin(diameter: diameter, highContrast: $0) }
     private static let selectedPins = [false, true].map { MarkerArt.pin(diameter: diameter * selectedScale, highContrast: $0) }
+    private static let clearPin = MarkerArt.clear(size: pins[0].image.size)
+    private static let clearSelectedPin = MarkerArt.clear(size: selectedPins[0].image.size)
 
+    /// The glass marker on iOS 26+, over a clear image the size of the drawn pin, so frame and tip stay where they are.
+    private var glass: UIView?
+    private let cross = UIImageView(image: UIImage(systemName: "cross.fill"))
     private var isShownSelected = false
     private var collisionInsets = UIEdgeInsets.zero
 
@@ -136,6 +193,14 @@ final class PharmacyAnnotationView: MKAnnotationView {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
         clusteringIdentifier = MapStyle.clusteringIdentifier
         collisionMode = .circle
+        if #available(iOS 26, *) {
+            let marker = GlassMarkerView()
+            cross.tintColor = .white
+            cross.contentMode = .scaleAspectFit
+            marker.head.contentView.addSubview(cross)
+            addSubview(marker)
+            glass = marker
+        }
         show(selected: false)
         isAccessibilityElement = true
         accessibilityTraits = .button
@@ -204,10 +269,21 @@ final class PharmacyAnnotationView: MKAnnotationView {
 
     private func show(selected: Bool) {
         isShownSelected = selected
-        let contrast = traitCollection.accessibilityContrast == .high ? 1 : 0
-        let pin = Self.pins[contrast], selectedPin = Self.selectedPins[contrast]
+        let highContrast = traitCollection.accessibilityContrast == .high
+        let pin = Self.pins[highContrast ? 1 : 0], selectedPin = Self.selectedPins[highContrast ? 1 : 0]
         let art = selected ? selectedPin : pin
-        image = art.image
+        if #available(iOS 26, *), let marker = glass as? GlassMarkerView {
+            image = selected ? Self.clearSelectedPin : Self.clearPin
+            let size = art.image.size
+            let diameter = selected ? Self.diameter * Self.selectedScale : Self.diameter
+            let pad = (size.width - diameter) / 2
+            marker.frame = bounds
+            marker.show(head: CGRect(x: pad, y: pad, width: diameter, height: diameter),
+                        tip: CGPoint(x: size.width / 2, y: size.height / 2 + art.tipOffset), highContrast: highContrast)
+            cross.frame = marker.head.bounds.insetBy(dx: diameter * 0.22, dy: diameter * 0.22)
+        } else {
+            image = art.image
+        }
         centerOffset = CGPoint(x: 0, y: -art.tipOffset)
         collisionInsets = selected ? Self.footprint(of: pin, in: selectedPin) : .zero
         displayPriority = .defaultHigh
@@ -224,9 +300,21 @@ final class PharmacyAnnotationView: MKAnnotationView {
 }
 
 final class ClusterAnnotationView: MKAnnotationView {
+    /// The glass badge on iOS 26+, as on `PharmacyAnnotationView`.
+    private var glass: UIView?
+    private let countLabel = UILabel()
+
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
         collisionMode = .circle
+        if #available(iOS 26, *) {
+            let marker = GlassMarkerView()
+            countLabel.textColor = .white
+            countLabel.textAlignment = .center
+            marker.head.contentView.addSubview(countLabel)
+            addSubview(marker)
+            glass = marker
+        }
         displayPriority = .required
         isAccessibilityElement = true
         accessibilityTraits = .button
@@ -247,16 +335,35 @@ final class ClusterAnnotationView: MKAnnotationView {
     private func updateBadge() {
         guard let cluster = annotation as? MKClusterAnnotation else { return }
         let count = cluster.memberAnnotations.count
-        image = Self.badge(count: count, traits: traitCollection)
+        let font = Self.font(traits: traitCollection)
+        let side = Self.side(count: count, font: font)
+        let highContrast = traitCollection.accessibilityContrast == .high
+        if #available(iOS 26, *), let marker = glass as? GlassMarkerView {
+            let pad = MarkerArt.shadowPadding
+            image = MarkerArt.clear(size: CGSize(width: side + 2 * pad, height: side + 2 * pad))
+            marker.frame = bounds
+            marker.show(head: CGRect(x: pad, y: pad, width: side, height: side), tip: nil, highContrast: highContrast)
+            countLabel.text = "\(count)"
+            countLabel.font = font
+            countLabel.frame = marker.head.bounds
+        } else {
+            image = Self.badge(count: count, font: font, side: side, highContrast: highContrast)
+        }
         accessibilityLabel = "\(count) pharmacies, zoom in"
     }
 
     /// The count follows the text size, up to a point, so large badges do not hide the map.
-    private static func badge(count: Int, traits: UITraitCollection) -> UIImage {
-        let font = UIFontMetrics(forTextStyle: .subheadline)
+    private static func font(traits: UITraitCollection) -> UIFont {
+        UIFontMetrics(forTextStyle: .subheadline)
             .scaledFont(for: .boldSystemFont(ofSize: 15), maximumPointSize: 22, compatibleWith: traits)
-        let side = (count < 10 ? 32 : 38) * font.pointSize / 15
-        return MarkerArt.badge(side: side, highContrast: traits.accessibilityContrast == .high) { circle in
+    }
+
+    private static func side(count: Int, font: UIFont) -> CGFloat {
+        (count < 10 ? 32 : 38) * font.pointSize / 15
+    }
+
+    private static func badge(count: Int, font: UIFont, side: CGFloat, highContrast: Bool) -> UIImage {
+        MarkerArt.badge(side: side, highContrast: highContrast) { circle in
             let shadow = NSShadow()
             shadow.shadowColor = UIColor.black.withAlphaComponent(0.25)
             shadow.shadowOffset = CGSize(width: 0, height: 0.5)
