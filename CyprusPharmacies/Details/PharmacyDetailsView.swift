@@ -85,24 +85,26 @@ struct PharmacyDetailsView: View {
             if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 12) {
+                        shareButton
                         Spacer()
-                        headerButtons
+                        closeButton
                     }
-                    title
+                    title(alignment: .leading)
                 }
             } else {
-                // The round buttons sit at the top, by the name's first line, as in Maps place cards.
+                // Share and Close on either side of the name, as in Maps sheets.
                 HStack(alignment: .top, spacing: 12) {
-                    title
-                    headerButtons
+                    shareButton
+                    title(alignment: .center)
+                    closeButton
                 }
             }
         }
         .padding(.bottom, 8)
     }
 
-    private var title: some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private func title(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 2) {
             Text(pharmacy.name.isEmpty ? "Pharmacy" : pharmacy.name)
                 .font(.title2.bold())
                 .accessibilityAddTraits(.isHeader)
@@ -112,26 +114,32 @@ struct PharmacyDetailsView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .multilineTextAlignment(alignment == .center ? .center : .leading)
         .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: Alignment(horizontal: alignment, vertical: .top))
     }
 
-    @ViewBuilder private var headerButtons: some View {
+    /// Without a link to share, an empty slot of the same size keeps the name centered.
+    @ViewBuilder private var shareButton: some View {
         Group {
             if let url = pharmacy.appleMapsURL {
                 ShareLink(item: url, subject: Text(pharmacy.name), message: Text(shareMessage)) {
                     CircleButtonLabel(systemImage: "square.and.arrow.up")
                 }
                 .accessibilityLabel("Share")
+            } else {
+                Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
             }
-            Button(action: onClose) {
-                CircleButtonLabel(systemImage: "xmark")
-            }
-            .accessibilityLabel("Close")
         }
-        .buttonStyle(.plain)
-        // Big enough to hit, without crowding the name at the largest sizes.
-        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        .headerButtonStyle()
+    }
+
+    private var closeButton: some View {
+        Button(action: onClose) {
+            CircleButtonLabel(systemImage: "xmark")
+        }
+        .accessibilityLabel("Close")
+        .headerButtonStyle()
     }
 
     private var shareMessage: String {
@@ -326,5 +334,13 @@ private struct ButtonsHeightKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
+    }
+}
+
+private extension View {
+    func headerButtonStyle() -> some View {
+        buttonStyle(.plain)
+            // Big enough to hit, without crowding the name at the largest sizes.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 }
