@@ -20,6 +20,8 @@ struct PharmacyMapView: UIViewRepresentable {
     /// Height covered by the overlay at the top (date bar), so focusing keeps pins out from under it.
     let topInset: CGFloat
     let onSelect: (Pharmacy?) -> Void
+    /// The user started to pan, pinch or double-tap the map.
+    let onUserMove: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -35,6 +37,13 @@ struct PharmacyMapView: UIViewRepresentable {
                          forAnnotationViewWithReuseIdentifier: MKMapViewDefaultClusterAnnotationViewReuseIdentifier)
         mapView.setRegion(Self.cyprus, animated: false)
         mapView.accessibilityIdentifier = "pharmacyMap"
+        // MapKit says nothing about who moved the map; these watch the user's gestures alongside its own.
+        for recognizer in [UIPanGestureRecognizer(), UIPinchGestureRecognizer(), UIRotationGestureRecognizer()] {
+            recognizer.addTarget(context.coordinator, action: #selector(Coordinator.userGesture(_:)))
+            recognizer.delegate = context.coordinator
+            recognizer.cancelsTouchesInView = false
+            mapView.addGestureRecognizer(recognizer)
+        }
         return mapView
     }
 
@@ -51,9 +60,11 @@ struct PharmacyMapView: UIViewRepresentable {
         }
     }
 
-    final class Coordinator: NSObject, MKMapViewDelegate {
+    final class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         /// About 3 km top to bottom: close enough for single pins, not clusters.
         static let streetSpan: CLLocationDegrees = 0.03
+        /// About 17 km top to bottom: a town and its suburbs.
+        static let citySpan: CLLocationDegrees = 0.15
 
         var parent: PharmacyMapView?
         var appliedCommand: UUID?
@@ -111,6 +122,10 @@ struct PharmacyMapView: UIViewRepresentable {
                 )
                 mapView.setRegion(MKCoordinateRegion(center: center, span: span), animated: true)
 
+            case let .showCity(center):
+                let span = MKCoordinateSpan(latitudeDelta: Self.citySpan, longitudeDelta: Self.citySpan)
+                mapView.setRegion(MKCoordinateRegion(center: center, span: span), animated: true)
+
             case let .showUser(user, nearest):
                 guard let nearest else {
                     mapView.setRegion(MKCoordinateRegion(center: user, latitudinalMeters: 4000, longitudinalMeters: 4000),
@@ -126,6 +141,13 @@ struct PharmacyMapView: UIViewRepresentable {
                                           animated: true)
             }
         }
+
+        @objc func userGesture(_ recognizer: UIGestureRecognizer) {
+            if recognizer.state == .began { parent?.onUserMove() }
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
 
         // MARK: MKMapViewDelegate
 

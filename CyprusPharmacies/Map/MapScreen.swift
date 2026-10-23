@@ -118,6 +118,13 @@ struct MapScreen: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
             model.refreshIfNeeded()
         }
+        // The duty day changes at 08:00, not at midnight.
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(max(1, model.calendar.nextDayStart.timeIntervalSinceNow)))
+                if hasStarted { model.refreshIfNeeded() }
+            }
+        }
     }
 
     private var map: some View {
@@ -127,7 +134,8 @@ struct MapScreen: View {
             command: model.mapCommand,
             showsUserLocation: model.showsUserLocation,
             topInset: topBarBottom,
-            onSelect: { model.select($0) }
+            onSelect: { model.select($0) },
+            onUserMove: { model.userDidMoveMap() }
         )
         .ignoresSafeArea()
     }

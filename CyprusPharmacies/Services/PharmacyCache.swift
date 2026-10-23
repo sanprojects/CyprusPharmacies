@@ -11,15 +11,24 @@ struct CachedDay: Codable, Equatable {
     let pharmacies: [Pharmacy]
 }
 
+/// The roster the cached days came from: its ETag, and when the server last sent or confirmed it.
+struct RosterStamp: Codable, Equatable {
+    let etag: String?
+    let checkedAt: Date
+}
+
 protocol PharmacyCaching {
     func load(dayKey: String) -> CachedDay?
     func save(_ pharmacies: [Pharmacy], dayKey: String)
     /// Deletes every day strictly before `todayKey`.
     func removeDays(before todayKey: String)
+    func loadRosterStamp() -> RosterStamp?
+    func saveRosterStamp(_ stamp: RosterStamp)
 }
 
 /// One JSON file per calendar day in Application Support, so the cache survives restarts and is not purged like Caches.
-final class PharmacyCache: PharmacyCaching {
+/// Sendable: the state is constant and every file access goes through the serial queue.
+final class PharmacyCache: PharmacyCaching, @unchecked Sendable {
     private let directory: URL
     private let fileManager: FileManager
     private let now: () -> Date
@@ -40,20 +49,37 @@ final class PharmacyCache: PharmacyCaching {
         }
     }
 
+    /// Written in the background: a later `load` on the same queue still sees it.
     func save(_ pharmacies: [Pharmacy], dayKey: String) {
         let day = CachedDay(dayKey: dayKey, savedAt: now(), pharmacies: pharmacies)
+        write(day, to: fileURL(dayKey))
+    }
+
+    func loadRosterStamp() -> RosterStamp? {
         queue.sync {
+            guard let data = try? Data(contentsOf: stampURL) else { return nil }
+            return try? JSONDecoder().decode(RosterStamp.self, from: data)
+        }
+    }
+
+    func saveRosterStamp(_ stamp: RosterStamp) {
+        write(stamp, to: stampURL)
+    }
+
+    private func write(_ value: some Encodable & Sendable, to url: URL) {
+        queue.async { [self] in
             do {
                 try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-                try JSONEncoder().encode(day).write(to: fileURL(dayKey), options: .atomic)
+                try JSONEncoder().encode(value).write(to: url, options: .atomic)
             } catch {
                 ErrorReporter.shared.report(cacheError: error)
             }
         }
     }
 
+    /// In the background, like the writes: nothing waits for old days to go.
     func removeDays(before todayKey: String) {
-        queue.sync {
+        queue.async { [self] in
             let files = (try? fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
             for file in files where file.pathExtension == "json" {
                 // ISO dates compare correctly as strings.
@@ -67,6 +93,9 @@ final class PharmacyCache: PharmacyCaching {
     func removeAll() {
         queue.sync { _ = try? fileManager.removeItem(at: directory) }
     }
+
+    /// Not a `.json` file, so `removeDays` leaves it alone.
+    private var stampURL: URL { directory.appendingPathComponent("roster.stamp") }
 
     private func fileURL(_ dayKey: String) -> URL {
         directory.appendingPathComponent("\(dayKey).json")

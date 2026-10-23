@@ -71,13 +71,25 @@ final class PhoneOptionTests: XCTestCase {
 }
 
 final class DutyCalendarTests: XCTestCase {
-    /// 2026-10-23 22:30 UTC is already 2026-10-24 01:30 in Nicosia.
+    /// 2026-10-23 22:30 UTC is already 2026-10-24 01:30 in Nicosia, still in the duty of the 23rd.
     private let lateEvening = Date(timeIntervalSince1970: 1_792_794_600)
+    /// 2026-10-23 05:30 UTC: 08:30 in Nicosia, the duty of the 23rd has begun; in UTC it would not have.
+    private let morning = Date(timeIntervalSince1970: 1_792_733_400)
 
     func testDayKeyUsesCyprusTimeZone() {
-        let calendar = DutyCalendar(now: { self.lateEvening })
-        XCTAssertEqual(calendar.todayKey, "2026-10-24")
-        XCTAssertEqual(calendar.dayKey(offset: 10), "2026-11-03")
+        let calendar = DutyCalendar(now: { self.morning })
+        XCTAssertEqual(calendar.todayKey, "2026-10-23")
+        XCTAssertEqual(calendar.dayKey(offset: 10), "2026-11-02")
+    }
+
+    func testDutyDayStartsAt8() {
+        let before = DutyCalendar(now: { Date(timeIntervalSince1970: 1_792_731_540) }) // 07:59 Nicosia
+        let at = DutyCalendar(now: { Date(timeIntervalSince1970: 1_792_731_600) })     // 08:00 Nicosia
+        XCTAssertEqual(before.todayKey, "2026-10-22")
+        XCTAssertEqual(at.todayKey, "2026-10-23")
+        XCTAssertEqual(DutyCalendar(now: { self.lateEvening }).todayKey, "2026-10-23", "after midnight, before 08:00")
+        XCTAssertEqual(before.nextDayStart, Date(timeIntervalSince1970: 1_792_731_600))
+        XCTAssertEqual(at.nextDayStart, Date(timeIntervalSince1970: 1_792_731_600 + 24 * 60 * 60))
     }
 
     func testTitles() {
@@ -87,9 +99,9 @@ final class DutyCalendarTests: XCTestCase {
         XCTAssertEqual(calendar.relativeTitle(offset: 0), "Today")
         XCTAssertEqual(calendar.relativeTitle(offset: 1), "Tomorrow")
         XCTAssertEqual(calendar.relativeTitle(offset: 7), "In 7 days")
-        XCTAssertEqual(calendar.menuTitle(offset: 0), "Today, Sat 24 Oct", "01:30 in Nicosia is already the 24th")
-        XCTAssertEqual(calendar.menuTitle(offset: 1), "Tomorrow, Sun 25 Oct")
-        XCTAssertEqual(calendar.menuTitle(offset: 10), "Tue 3 Nov")
+        XCTAssertEqual(calendar.menuTitle(offset: 0), "Today, Fri 23 Oct", "01:30 is still the duty of the 23rd")
+        XCTAssertEqual(calendar.menuTitle(offset: 1), "Tomorrow, Sat 24 Oct")
+        XCTAssertEqual(calendar.menuTitle(offset: 10), "Mon 2 Nov")
     }
 
     func testOffsetRange() {
@@ -128,6 +140,18 @@ final class APITests: XCTestCase {
                        "https://sanstv.ru/pharmacies/data/today.php?offset=3")
     }
 
+    func testRosterAndCityURLsSitNextToToday() {
+        XCTAssertEqual(PharmacyAPI().rosterURL.absoluteString, "https://sanstv.ru/pharmacies/data/days.php")
+        XCTAssertEqual(PharmacyAPI().ipCityURL.absoluteString, "https://sanstv.ru/pharmacies/data/geo.php")
+    }
+
+    func testRosterDecodes() throws {
+        let json = Data(#"{"today":"2026-10-23","days":{"2026-10-23":[{"date":"2026-10-23","name":"A","lat":35,"lng":33}]}}"#.utf8)
+        let roster = try PharmacyAPI.decode(Roster.self, from: json)
+        XCTAssertEqual(roster.today, "2026-10-23")
+        XCTAssertEqual(roster.days["2026-10-23"]?.map(\.name), ["A"])
+    }
+
     func testURLErrorMapping() {
         XCTAssertEqual(PharmacyAPI.map(URLError(.notConnectedToInternet)) as? PharmacyAPIError, .offline)
         XCTAssertEqual(PharmacyAPI.map(URLError(.timedOut)) as? PharmacyAPIError, .transport(.timedOut))
@@ -154,11 +178,17 @@ final class PharmacyCacheTests: XCTestCase {
 
     func testSaveLoadSurvivesNewInstance() throws {
         let list = try PharmacyAPI.decode(Fixture.data("today"))
-        PharmacyCache(directory: directory).save(list, dayKey: "2026-10-26")
+        let writer = PharmacyCache(directory: directory)
+        writer.save(list, dayKey: "2026-10-26")
+        writer.saveRosterStamp(RosterStamp(etag: "\"v1\"", checkedAt: Date(timeIntervalSince1970: 0)))
+        // A load waits for the background writes before it.
+        XCTAssertNotNil(writer.load(dayKey: "2026-10-26"))
 
         let loaded = PharmacyCache(directory: directory).load(dayKey: "2026-10-26")
         XCTAssertEqual(loaded?.pharmacies, list)
         XCTAssertNil(PharmacyCache(directory: directory).load(dayKey: "2026-10-27"))
+        XCTAssertEqual(PharmacyCache(directory: directory).loadRosterStamp(),
+                       RosterStamp(etag: "\"v1\"", checkedAt: Date(timeIntervalSince1970: 0)))
     }
 
     func testRemovesOnlyDaysBeforeToday() {

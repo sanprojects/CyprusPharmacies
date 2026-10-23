@@ -35,6 +35,10 @@ final class ErrorReporter: LoadErrorReporting, Sendable {
             options.enableCrashHandler = true
             options.attachStacktrace = true
             options.sendDefaultPii = false
+            // Only crashes and load errors are sent: no tracing, and no method swizzling to pay for at launch.
+            options.enableAutoPerformanceTracing = false
+            options.enableSwizzling = false
+            options.enableNetworkBreadcrumbs = false
         }
         enabled.withLock { $0 = true }
     }

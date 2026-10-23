@@ -3,6 +3,7 @@
 //  CyprusPharmacies
 //
 
+import CoreLocation
 import SwiftUI
 
 @main
@@ -60,5 +61,12 @@ private struct FixturePharmacies: PharmacyFetching {
     func pharmacies(offset: Int) async throws -> [Pharmacy] {
         try PharmacyAPI.decode(json)
     }
+
+    /// A server without the roster, so every day comes from `pharmacies(offset:)`.
+    func roster(etag: String?) async throws -> RosterResponse {
+        throw PharmacyAPIError.http(status: 404)
+    }
+
+    func ipCity() async -> CLLocationCoordinate2D? { nil }
 }
 #endif

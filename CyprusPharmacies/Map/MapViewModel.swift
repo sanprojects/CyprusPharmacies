@@ -16,6 +16,8 @@ struct MapCommand: Equatable {
         case focus(CLLocationCoordinate2D, bottomInset: CGFloat, zoomIn: Bool)
         /// Fit the user and, when known, the nearest pharmacy.
         case showUser(CLLocationCoordinate2D, nearest: CLLocationCoordinate2D?)
+        /// The city around a point, when the user's own position is unknown.
+        case showCity(CLLocationCoordinate2D)
     }
 
     let id = UUID()
@@ -66,13 +68,15 @@ final class MapViewModel {
     @ObservationIgnored private let reporter: LoadErrorReporting
     @ObservationIgnored private let location: LocationProviding
     @ObservationIgnored let calendar: DutyCalendar
-    /// A cached day younger than this is shown without asking the server again.
+    /// A cached day younger than this is shown without asking the server again. The roster changes weekly.
     @ObservationIgnored private let refreshInterval: TimeInterval
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var lastShownOffset: Int?
     /// The selection came from the list, where its pin may be hidden in a cluster.
     @ObservationIgnored private var zoomsToSelection = false
+    /// The user panned or zoomed: the launch zoom must not take the map away from them.
+    @ObservationIgnored private var userMovedMap = false
 
     init(api: PharmacyFetching,
          cache: PharmacyCaching,
@@ -80,7 +84,7 @@ final class MapViewModel {
          reporter: LoadErrorReporting,
          location: LocationProviding,
          calendar: DutyCalendar = DutyCalendar(),
-         refreshInterval: TimeInterval = 15 * 60) {
+         refreshInterval: TimeInterval = 6 * 60 * 60) {
         self.api = api
         self.cache = cache
         self.network = network
@@ -107,7 +111,7 @@ final class MapViewModel {
     func start() {
         cache.removeDays(before: calendar.todayKey)
         load()
-        Task { await refreshUserLocation() }
+        Task { await showUserArea() }
     }
 
     func previousDay() { show(offset: offset - 1) }
@@ -141,7 +145,7 @@ final class MapViewModel {
 
     // MARK: - Loading
 
-    /// Shows the cached day at once, then asks the server unless the cache is fresh.
+    /// Shows the cached day at once, then asks the server unless the cache, or the roster it came from, is fresh.
     func load() {
         loadTask?.cancel()
         generation += 1
@@ -160,7 +164,8 @@ final class MapViewModel {
             selected = nil
         }
 
-        if let cached, Date().timeIntervalSince(cached.savedAt) < refreshInterval {
+        let checkedAt = max(cached?.savedAt ?? .distantPast, cache.loadRosterStamp()?.checkedAt ?? .distantPast)
+        if cached != nil, Date().timeIntervalSince(checkedAt) < refreshInterval {
             isLoading = false
             return
         }
@@ -182,9 +187,8 @@ final class MapViewModel {
         guard token == generation, !Task.isCancelled else { return }
 
         do {
-            let list = try await api.pharmacies(offset: requestedOffset)
+            let list = try await fetchDay(offset: requestedOffset, dayKey: key)
             guard token == generation, !Task.isCancelled else { return }
-            cache.save(list, dayKey: key)
             apply(list, offset: requestedOffset)
         } catch let error as PharmacyAPIError {
             guard token == generation, !Task.isCancelled else { return }
@@ -198,6 +202,31 @@ final class MapViewModel {
         } catch {
             // CancellationError: the user moved to another day.
         }
+    }
+
+    /// The roster first: one request brings every day, and an unchanged roster brings nothing. The day alone from
+    /// `today.php` when the roster lacks it, or the server has no roster or sent one the app cannot read.
+    private func fetchDay(offset requestedOffset: Int, dayKey key: String) async throws -> [Pharmacy] {
+        let stamp = cache.loadRosterStamp()
+        do {
+            switch try await api.roster(etag: stamp?.etag) {
+            case .notModified:
+                cache.saveRosterStamp(RosterStamp(etag: stamp?.etag, checkedAt: Date()))
+                if let cached = cache.load(dayKey: key) { return cached.pharmacies }
+            case let .roster(roster, etag):
+                for (day, list) in roster.days where day >= calendar.todayKey {
+                    cache.save(list, dayKey: day)
+                }
+                cache.saveRosterStamp(RosterStamp(etag: etag, checkedAt: Date()))
+                if let list = roster.days[key] { return list }
+            }
+        } catch PharmacyAPIError.http, PharmacyAPIError.decoding, PharmacyAPIError.invalidResponse {
+            // Not reported: the day request below reports what is really broken.
+        }
+        try Task.checkCancellation()
+        let list = try await api.pharmacies(offset: requestedOffset)
+        cache.save(list, dayKey: key)
+        return list
     }
 
     private func apply(_ list: [Pharmacy], offset shownOffset: Int) {
@@ -215,6 +244,8 @@ final class MapViewModel {
     }
 
     // MARK: - Map
+
+    func userDidMoveMap() { userMovedMap = true }
 
     func select(_ pharmacy: Pharmacy?, zoomIn: Bool = false) {
         selected = pharmacy
@@ -243,6 +274,21 @@ final class MapViewModel {
             return pharmacies.sorted { (distance(to: $0) ?? 0) < (distance(to: $1) ?? 0) }
         }
         return pharmacies.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// At launch: the user and the nearest pharmacy with location access, otherwise the city of the IP address.
+    /// Never asks for access, and leaves the map alone once the user has moved it, picked a pharmacy or tapped Locate.
+    private func showUserArea() async {
+        let launchCommand = mapCommand?.id
+        var mayMove: Bool { !userMovedMap && selected == nil && mapCommand?.id == launchCommand }
+
+        if location.access == .authorized {
+            await refreshUserLocation()
+            guard let here = userLocation, mayMove else { return }
+            mapCommand = MapCommand(kind: .showUser(here.coordinate, nearest: nearestPharmacy(to: here)?.coordinate))
+        } else if let city = await api.ipCity(), mayMove, location.access != .authorized {
+            mapCommand = MapCommand(kind: .showCity(city))
+        }
     }
 
     /// Updates `userLocation` without moving the map and without asking for access.

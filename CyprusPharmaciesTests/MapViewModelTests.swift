@@ -252,7 +252,105 @@ final class MapViewModelTests: XCTestCase {
 
         XCTAssertEqual(model.sortedPharmacies.map(\.name), ["C near", "A mid", "B far"])
         XCTAssertNotNil(model.distance(to: model.pharmacies[0]))
-        XCTAssertEqual(model.mapCommand?.kind, .showIsland, "a silent location update does not move the map")
+        XCTAssertEqual(model.mapCommand?.kind, .showUser(CLLocationCoordinate2D(latitude: 35.16, longitude: 33.35),
+                                                         nearest: CLLocationCoordinate2D(latitude: 35.17, longitude: 33.36)),
+                       "with access the launch shows the user and the nearest pharmacy")
+        XCTAssertEqual(api.ipCityRequests, 0, "the IP city is not needed with access")
+    }
+
+    // MARK: - Roster
+
+    func testRosterFillsEveryDaySoAnotherDayNeedsNoRequest() async {
+        api.rosterResult = .success(.roster(Roster(today: "2026-10-23", days: [
+            "2026-10-22": [pharmacy("Yesterday", day: "2026-10-22")],
+            "2026-10-23": [pharmacy("A")],
+            "2026-10-24": [pharmacy("B", day: "2026-10-24")],
+        ]), etag: "\"v1\""))
+        let model = makeModel()
+        model.start()
+        await settle()
+        XCTAssertEqual(model.pharmacies.map(\.name), ["A"])
+        XCTAssertEqual(cache.stamp?.etag, "\"v1\"")
+        XCTAssertNil(cache.days["2026-10-22"], "past days of the roster are not kept")
+
+        model.nextDay()
+        await settle()
+        XCTAssertEqual(model.pharmacies.map(\.name), ["B"])
+        XCTAssertEqual(api.rosterRequests, [nil], "one request for both days")
+        XCTAssertTrue(api.requested.isEmpty)
+    }
+
+    func testUnchangedRosterSendsETagAndKeepsCache() async {
+        cache.days["2026-10-23"] = CachedDay(dayKey: "2026-10-23", savedAt: .distantPast, pharmacies: [pharmacy("Cached")])
+        cache.stamp = RosterStamp(etag: "\"v1\"", checkedAt: .distantPast)
+        api.rosterResult = .success(.notModified)
+        let model = makeModel()
+        model.start()
+        await settle()
+
+        XCTAssertEqual(api.rosterRequests, ["\"v1\""])
+        XCTAssertEqual(model.pharmacies.map(\.name), ["Cached"])
+        XCTAssertTrue(api.requested.isEmpty)
+        XCTAssertGreaterThan(cache.stamp?.checkedAt ?? .distantPast, Date().addingTimeInterval(-60))
+
+        model.refreshIfNeeded()
+        await settle()
+        XCTAssertEqual(api.rosterRequests.count, 1, "a confirmed roster is fresh")
+    }
+
+    func testServerWithoutRosterFallsBackToTheDay() async {
+        api.rosterResult = .failure(PharmacyAPIError.http(status: 404))
+        api.results[0] = .success([pharmacy("A")])
+        let model = makeModel()
+        model.start()
+        await settle()
+
+        XCTAssertEqual(model.pharmacies.map(\.name), ["A"])
+        XCTAssertEqual(api.requested, [0])
+        XCTAssertTrue(reporter.reports.isEmpty)
+    }
+
+    func testRosterWithoutTheDayFallsBackToTheDay() async {
+        api.rosterResult = .success(.roster(Roster(today: "2026-10-23", days: [:]), etag: nil))
+        api.results[0] = .success([pharmacy("A")])
+        let model = makeModel()
+        model.start()
+        await settle()
+
+        XCTAssertEqual(model.pharmacies.map(\.name), ["A"])
+        XCTAssertEqual(api.requested, [0])
+    }
+
+    // MARK: - Launch zoom
+
+    func testLaunchWithoutAccessShowsIPCity() async {
+        api.ipCityResult = CLLocationCoordinate2D(latitude: 34.68, longitude: 33.04)
+        let model = makeModel()
+        model.start()
+        await settle()
+
+        XCTAssertEqual(model.mapCommand?.kind, .showCity(CLLocationCoordinate2D(latitude: 34.68, longitude: 33.04)))
+        XCTAssertEqual(location.accessRequests, 0)
+    }
+
+    func testLaunchZoomLeavesMapAloneOnceUserMovedIt() async {
+        api.ipCityResult = CLLocationCoordinate2D(latitude: 34.68, longitude: 33.04)
+        api.ipCityDelay = 0.05
+        let model = makeModel()
+        model.start()
+        model.userDidMoveMap()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        await settle()
+
+        XCTAssertEqual(model.mapCommand?.kind, .showIsland)
+    }
+
+    func testLaunchOutsideCyprusKeepsIsland() async {
+        let model = makeModel()
+        model.start()
+        await settle()
+
+        XCTAssertEqual(model.mapCommand?.kind, .showIsland)
     }
 
     func testListIsByNameWithoutLocationAndNeverAsksForAccess() async {
@@ -280,7 +378,24 @@ final class MapViewModelTests: XCTestCase {
 private final class FakeAPI: PharmacyFetching {
     var results: [Int: Result<[Pharmacy], Error>] = [:]
     var delays: [Int: TimeInterval] = [:]
+    /// A server without `days.php` unless a test sets it.
+    var rosterResult: Result<RosterResponse, Error> = .failure(PharmacyAPIError.http(status: 404))
+    var ipCityResult: CLLocationCoordinate2D?
+    var ipCityDelay: TimeInterval = 0
     private(set) var requested: [Int] = []
+    private(set) var rosterRequests: [String?] = []
+    private(set) var ipCityRequests = 0
+
+    func roster(etag: String?) async throws -> RosterResponse {
+        rosterRequests.append(etag)
+        return try rosterResult.get()
+    }
+
+    func ipCity() async -> CLLocationCoordinate2D? {
+        ipCityRequests += 1
+        if ipCityDelay > 0 { try? await Task.sleep(nanoseconds: UInt64(ipCityDelay * 1_000_000_000)) }
+        return ipCityResult
+    }
 
     func url(offset: Int) -> URL { URL(string: "https://example.test/today.php?offset=\(offset)")! }
 
@@ -295,7 +410,11 @@ private final class FakeAPI: PharmacyFetching {
 
 private final class MemoryCache: PharmacyCaching {
     var days: [String: CachedDay] = [:]
+    var stamp: RosterStamp?
     private(set) var removedBefore: [String] = []
+
+    func loadRosterStamp() -> RosterStamp? { stamp }
+    func saveRosterStamp(_ stamp: RosterStamp) { self.stamp = stamp }
 
     func load(dayKey: String) -> CachedDay? { days[dayKey] }
     func save(_ pharmacies: [Pharmacy], dayKey: String) {
