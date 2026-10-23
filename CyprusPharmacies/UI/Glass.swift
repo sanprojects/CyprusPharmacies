@@ -36,3 +36,34 @@ extension View {
         }
     }
 }
+
+/// A round glass button face, as the Share and Close buttons of Apple's sheets: a dark glyph on clear glass on iOS 26+,
+/// on a gray circle before. Used as the label of a plain-style button or a `ShareLink`.
+struct CircleButtonLabel: View {
+    let systemImage: String
+
+    var body: some View {
+        let face = Image(systemName: systemImage)
+            .font(.body.weight(.semibold))
+            // Explicit color: in a button `.primary` would be the accent color.
+            .foregroundStyle(Color(.label))
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+        if #available(iOS 26, *) {
+            face.glassEffect(.regular.interactive(), in: Circle())
+        } else {
+            face.background(Circle().fill(Color(.tertiarySystemFill)))
+        }
+    }
+}
+
+extension Color {
+    /// A card on a sheet: lighter than the sheet's glass on iOS 26+, as Maps' route cards; a grouped cell before.
+    static var sheetCard: Color {
+        if #available(iOS 26, *) {
+            return Color(UIColor { $0.userInterfaceStyle == .dark
+                ? UIColor(white: 1, alpha: 0.08) : UIColor(white: 1, alpha: 0.55) })
+        }
+        return Color(.secondarySystemGroupedBackground)
+    }
+}

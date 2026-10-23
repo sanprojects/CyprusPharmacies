@@ -18,9 +18,9 @@ final class NightPharmaciesUITests: XCTestCase {
         launch(feed: Self.feed)
 
         app.buttons["List of pharmacies"].tap()
-        // The row reads name and address, then the distance when the simulator has a location;
-        // the map pin behind the sheet has the name alone.
-        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Alpha Pharmacy, 1 Makariou Ave., Nicosia"))
+        // The card reads the name, then distance and hours, then the address; the map pin behind the sheet has the name alone.
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@",
+                                                   "Alpha Pharmacy, ", "1 Makariou Ave., Nicosia"))
             .firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), app.debugDescription)
         row.tap()

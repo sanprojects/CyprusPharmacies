@@ -91,7 +91,8 @@ struct PharmacyDetailsView: View {
                     title
                 }
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                // The round buttons sit at the top, by the name's first line, as in Maps place cards.
+                HStack(alignment: .top, spacing: 12) {
                     title
                     headerButtons
                 }
@@ -116,27 +117,21 @@ struct PharmacyDetailsView: View {
     }
 
     @ViewBuilder private var headerButtons: some View {
-        if let url = pharmacy.appleMapsURL {
-            ShareLink(item: url, subject: Text(pharmacy.name), message: Text(shareMessage)) {
-                headerIcon("square.and.arrow.up.circle.fill")
+        Group {
+            if let url = pharmacy.appleMapsURL {
+                ShareLink(item: url, subject: Text(pharmacy.name), message: Text(shareMessage)) {
+                    CircleButtonLabel(systemImage: "square.and.arrow.up")
+                }
+                .accessibilityLabel("Share")
             }
-            .accessibilityLabel("Share")
+            Button(action: onClose) {
+                CircleButtonLabel(systemImage: "xmark")
+            }
+            .accessibilityLabel("Close")
         }
-        Button(action: onClose) {
-            headerIcon("xmark.circle.fill")
-        }
-        .accessibilityLabel("Close")
-    }
-
-    private func headerIcon(_ systemImage: String) -> some View {
-        Image(systemName: systemImage)
-            .font(.title2)
-            // Gray glyph on a filled circle, as Apple's sheets have; explicit colors, since in a button
-            // `.secondary` is a shade of the accent color.
-            .symbolRenderingMode(.palette)
-            .foregroundStyle(Color(.secondaryLabel), Color(.systemFill))
-            // Big enough to hit, without crowding the name at the largest sizes.
-            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        .buttonStyle(.plain)
+        // Big enough to hit, without crowding the name at the largest sizes.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 
     private var shareMessage: String {
