@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import os
 import Sentry
 
 protocol LoadErrorReporting {
@@ -12,10 +13,12 @@ protocol LoadErrorReporting {
 }
 
 /// Thin wrapper over Sentry. Crash reporting is on as soon as `start()` runs with a DSN.
-final class ErrorReporter: LoadErrorReporting {
+/// Sendable: the cache reports from any thread; Sentry itself is thread-safe.
+final class ErrorReporter: LoadErrorReporting, Sendable {
     static let shared = ErrorReporter()
 
-    private(set) var isEnabled = false
+    private let enabled = OSAllocatedUnfairLock(initialState: false)
+    var isEnabled: Bool { enabled.withLock { $0 } }
 
     func start(bundle: Bundle = .main) {
         let dsn = (bundle.object(forInfoDictionaryKey: "SentryDSN") as? String)?
@@ -33,7 +36,7 @@ final class ErrorReporter: LoadErrorReporting {
             options.attachStacktrace = true
             options.sendDefaultPii = false
         }
-        isEnabled = true
+        enabled.withLock { $0 = true }
     }
 
     func report(loadError: PharmacyAPIError, offset: Int, url: URL) {

@@ -6,6 +6,7 @@
 import XCTest
 
 /// The main flows on a fixed feed, so the tests do not depend on the network or on the day.
+@MainActor
 final class NightPharmaciesUITests: XCTestCase {
     private let app = XCUIApplication()
 

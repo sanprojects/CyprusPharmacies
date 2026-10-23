@@ -13,7 +13,9 @@ packages:
 
 settings:
   base:
-    SWIFT_VERSION: "5.0"
+    SWIFT_VERSION: "6.0"
+    # Nonisolated async functions run on the caller's actor (SE-0461), as in new Xcode projects.
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
     DEVELOPMENT_TEAM: 9R966FQAD6
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "2.0"
