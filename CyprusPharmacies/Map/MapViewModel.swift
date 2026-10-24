@@ -122,6 +122,7 @@ final class MapViewModel {
 
     func previousDay() { show(offset: offset - 1) }
     func nextDay() { show(offset: offset + 1) }
+    func showToday() { show(offset: 0) }
 
     func show(offset newOffset: Int) {
         guard DutyCalendar.offsets.contains(newOffset), newOffset != offset || blocking != nil else { return }

@@ -195,38 +195,41 @@ struct MapScreen: View {
         .sensoryFeedback(.selection, trigger: model.offset)
     }
 
-    /// Tapping the date opens a calendar of the days the feed covers, with the days that have pharmacies marked.
+    /// Tapping the date opens a calendar of the days the feed covers, with the days that have pharmacies marked; a double tap goes back to today.
     private var dayMenu: some View {
-        Button {
+        VStack(spacing: 2) {
+            Text(model.dateTitle)
+                .font(.headline)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+            HStack(spacing: 6) {
+                Text(model.relativeDayTitle)
+                    .contentTransition(.numericText())
+                if model.isLoading {
+                    ProgressView().controlSize(.mini).transition(.opacity)
+                }
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        .foregroundStyle(.primary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .contentShape(Rectangle())
+        // The double tap is declared first, so the single tap waits for it to fail.
+        .onTapGesture(count: 2) {
+            guard !isSwiping else { return }
+            model.showToday()
+        }
+        .onTapGesture {
             guard !isSwiping else { return }
             show(.calendar)
-        } label: {
-            VStack(spacing: 2) {
-                Text(model.dateTitle)
-                    .font(.headline)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                HStack(spacing: 6) {
-                    Text(model.relativeDayTitle)
-                        .contentTransition(.numericText())
-                    if model.isLoading {
-                        ProgressView().controlSize(.mini).transition(.opacity)
-                    }
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            }
-            .foregroundStyle(.primary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .contentShape(Rectangle())
         }
-        // Plain style keeps the date in label colors instead of the accent color.
-        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
+        .accessibilityAddTraits([.isHeader, .isButton])
         .accessibilityHint("Opens the calendar")
+        .accessibilityAction(named: "Today") { model.showToday() }
         .accessibilityIdentifier("dayMenu")
     }
 

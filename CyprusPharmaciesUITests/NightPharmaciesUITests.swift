@@ -52,6 +52,22 @@ final class NightPharmaciesUITests: XCTestCase {
         waitForExpectations(timeout: 5)
     }
 
+    func testDoubleTapOnDateReturnsToToday() {
+        launch(feed: Self.feed)
+
+        let dayMenu = app.buttons["dayMenu"]
+        XCTAssertTrue(dayMenu.waitForExistence(timeout: 5))
+        app.buttons["Next day"].tap()
+        let tomorrow = NSPredicate(format: "label CONTAINS %@", "Tomorrow")
+        expectation(for: tomorrow, evaluatedWith: dayMenu)
+        waitForExpectations(timeout: 5)
+
+        dayMenu.doubleTap()
+        let today = NSPredicate(format: "label CONTAINS %@", "Today")
+        expectation(for: today, evaluatedWith: dayMenu)
+        waitForExpectations(timeout: 5)
+    }
+
     func testOfflineWithoutCacheShowsNoInternet() {
         launch(feed: Self.feed, arguments: ["-simulateOffline", "YES"])
 

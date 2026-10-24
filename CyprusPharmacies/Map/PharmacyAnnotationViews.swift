@@ -258,7 +258,24 @@ final class GlassMarkerView: UIView {
     }
 }
 
-final class PharmacyAnnotationView: MKAnnotationView {
+/// A marker that can be held out of sight while a day's flight is on, whatever MapKit does to it meanwhile.
+class MarkerView: MKAnnotationView {
+    /// Set on the markers the flight has not given their turn yet; MapKit shows what it makes for a frame or two otherwise.
+    /// It is a mask, not `isHidden` or `alpha`, which stay MapKit's to say what it shows.
+    var isHeld = false {
+        didSet { layer.mask = isHeld ? CALayer() : nil }
+    }
+
+    /// Whether MapKit has the marker on the screen, held or not; it keeps views, and annotations, for markers it no longer shows.
+    var isOnMap: Bool { !isHidden && alpha > 0 && layer.opacity > 0 && superview != nil }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        isHeld = false
+    }
+}
+
+final class PharmacyAnnotationView: MarkerView {
     fileprivate static let diameter: CGFloat = 44
     private static let selectedScale: CGFloat = 1.5
     private static let hasGlass = if #available(iOS 26, *) { true } else { false }
@@ -320,18 +337,6 @@ final class PharmacyAnnotationView: MKAnnotationView {
         super.prepareForReuse()
         land()
         show(selected: false)
-    }
-
-    /// A pin new to the day grows from its tip, a moment after the others have started to move.
-    func appear() {
-        guard !UIAccessibility.isReduceMotionEnabled else { return }
-        content.layer.removeAllAnimations()
-        content.alpha = 0
-        content.transform = pivot(scale: 0.3)
-        UIView.animate(withDuration: 0.4, delay: 0.25, options: [.allowUserInteraction, .curveEaseOut]) {
-            self.content.alpha = 1
-            self.content.transform = .identity
-        }
     }
 
     /// A pin that flies in the day's change: its drawing starts `offset` away from where the coordinate is, and comes there.
@@ -416,7 +421,7 @@ final class PharmacyAnnotationView: MKAnnotationView {
     }
 }
 
-final class ClusterAnnotationView: MKAnnotationView {
+final class ClusterAnnotationView: MarkerView {
     /// The glass badge on iOS 26+, as the head of a pin.
     private var glass: UIView?
 
@@ -443,6 +448,28 @@ final class ClusterAnnotationView: MKAnnotationView {
     override func prepareForDisplay() {
         super.prepareForDisplay()
         updateBadge()
+    }
+
+    /// A badge that flies in the day's change: it is drawn `offset` away from where it is, and comes there.
+    func fly(from offset: CGPoint, duration: TimeInterval) {
+        guard hypot(offset.x, offset.y) > 0.5 else { return }
+        layer.removeAllAnimations()
+        alpha = 1
+        transform = CGAffineTransform(translationX: offset.x, y: offset.y)
+        UIView.animate(withDuration: duration, delay: 0, options: [.curveEaseInOut, .allowUserInteraction]) {
+            self.transform = .identity
+        }
+    }
+
+    /// A flight cut short: the badge is where it is.
+    func land() {
+        layer.removeAllAnimations()
+        transform = .identity
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        land()
     }
 
     private func updateBadge() {

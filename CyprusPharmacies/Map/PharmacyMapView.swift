@@ -136,10 +136,15 @@ struct PharmacyMapView: UIViewRepresentable {
             let arriving = wanted.values.filter { annotations[$0.id] == nil }
 
             // The day's change is not a swap of pins but a move: each pin that leaves flies to the nearest place where the
-            // next day has one, and only the surplus on either side shrinks away or grows in.
+            // next day has one, and only the surplus on either side goes or comes without a flight.
             flight?.finish(cancelled: true)
             let animated = hadPins && mapView.window != nil && !UIAccessibility.isReduceMotionEnabled && !isRegionChanging
             let next = animated ? MarkerFlight(on: mapView) : nil
+            // Set before the pins change: MapKit may hand over the views it makes for them while they are still changing.
+            flight = next
+            next?.onEnd = { [weak self, weak next] in
+                if self?.flight === next { self?.flight = nil }
+            }
             let pairs = animated ? Self.match(Array(gone.values), arriving) : []
             let flying = Set(pairs.map { ObjectIdentifier($0.annotation) })
             let landing = Set(pairs.map(\.pharmacy.id))
@@ -151,7 +156,6 @@ struct PharmacyMapView: UIViewRepresentable {
                 (mapView.view(for: annotation) as? PharmacyAnnotationView)?.refreshLabel()
             }
             for annotation in gone.values where !flying.contains(ObjectIdentifier(annotation)) {
-                next?.shrink(annotation)
                 mapView.removeAnnotation(annotation)
             }
 
@@ -161,13 +165,7 @@ struct PharmacyMapView: UIViewRepresentable {
                 return annotation
             }
             mapView.addAnnotations(added)
-            if let next {
-                flight = next
-                next.onEnd = { [weak self, weak next] in
-                    if self?.flight === next { self?.flight = nil }
-                }
-                next.fly(arriving: Set(added.map { ObjectIdentifier($0) }))
-            }
+            next?.fly()
         }
 
         /// Pairs of the leaving annotations and the arriving pharmacies, the nearest first; the rest of the longer side is
