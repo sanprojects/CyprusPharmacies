@@ -120,75 +120,22 @@ struct PharmacyMapView: UIViewRepresentable {
         private var shownIDs: [String] = []
         private var annotations: [String: PharmacyAnnotation] = [:]
 
-        /// The day's change of pins, while it is on the screen.
-        private var flight: MarkerFlight?
-        private var isRegionChanging = false
-
         func sync(_ pharmacies: [Pharmacy], on mapView: MKMapView) {
             let ids = pharmacies.map(\.id)
             guard ids != shownIDs else { return }
             shownIDs = ids
             // Keep annotations of pharmacies still on the map: replacing all of them breaks MapKit clustering.
             let wanted = Dictionary(pharmacies.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-            let hadPins = !annotations.isEmpty
             let gone = annotations.filter { wanted[$0.key] != $0.value.pharmacy }
             gone.keys.forEach { annotations[$0] = nil }
-            let arriving = wanted.values.filter { annotations[$0.id] == nil }
+            mapView.removeAnnotations(Array(gone.values))
 
-            // The day's change is not a swap of pins but a move: each pin that leaves flies to the nearest place where the
-            // next day has one, and only the surplus on either side goes or comes without a flight.
-            flight?.finish(cancelled: true)
-            let animated = hadPins && mapView.window != nil && !UIAccessibility.isReduceMotionEnabled && !isRegionChanging
-            let next = animated ? MarkerFlight(on: mapView) : nil
-            // Set before the pins change: MapKit may hand over the views it makes for them while they are still changing.
-            flight = next
-            next?.onEnd = { [weak self, weak next] in
-                if self?.flight === next { self?.flight = nil }
-            }
-            let pairs = animated ? Self.match(Array(gone.values), arriving) : []
-            let flying = Set(pairs.map { ObjectIdentifier($0.annotation) })
-            let landing = Set(pairs.map(\.pharmacy.id))
-
-            for (annotation, pharmacy) in pairs {
-                annotation.retarget(to: pharmacy)
-                annotations[pharmacy.id] = annotation
-                annotation.coordinate = pharmacy.coordinate
-                (mapView.view(for: annotation) as? PharmacyAnnotationView)?.refreshLabel()
-            }
-            for annotation in gone.values where !flying.contains(ObjectIdentifier(annotation)) {
-                mapView.removeAnnotation(annotation)
-            }
-
-            let added = arriving.filter { !landing.contains($0.id) }.map { pharmacy -> PharmacyAnnotation in
+            let added = wanted.values.filter { annotations[$0.id] == nil }.map { pharmacy -> PharmacyAnnotation in
                 let annotation = PharmacyAnnotation(pharmacy)
                 annotations[pharmacy.id] = annotation
                 return annotation
             }
             mapView.addAnnotations(added)
-            next?.fly()
-        }
-
-        /// Pairs of the leaving annotations and the arriving pharmacies, the nearest first; the rest of the longer side is
-        /// left without a pair.
-        private static func match(_ old: [PharmacyAnnotation], _ new: [Pharmacy]) -> [(annotation: PharmacyAnnotation, pharmacy: Pharmacy)] {
-            var candidates: [(distance: Double, old: Int, new: Int)] = []
-            candidates.reserveCapacity(old.count * new.count)
-            for (i, annotation) in old.enumerated() {
-                let from = MKMapPoint(annotation.coordinate)
-                for (j, pharmacy) in new.enumerated() {
-                    candidates.append((from.distance(to: MKMapPoint(pharmacy.coordinate)), i, j))
-                }
-            }
-            candidates.sort { $0.distance < $1.distance }
-            var usedOld = Set<Int>(), usedNew = Set<Int>()
-            var pairs: [(annotation: PharmacyAnnotation, pharmacy: Pharmacy)] = []
-            for candidate in candidates where !usedOld.contains(candidate.old) && !usedNew.contains(candidate.new) {
-                usedOld.insert(candidate.old)
-                usedNew.insert(candidate.new)
-                pairs.append((old[candidate.old], new[candidate.new]))
-                if pairs.count == min(old.count, new.count) { break }
-            }
-            return pairs
         }
 
         func syncSelection(_ selected: Pharmacy?, on mapView: MKMapView) {
@@ -293,10 +240,7 @@ struct PharmacyMapView: UIViewRepresentable {
         }
 
         @objc func userGesture(_ recognizer: UIGestureRecognizer) {
-            if recognizer.state == .began {
-                flight?.finish(cancelled: true)
-                parent?.onUserMove()
-            }
+            if recognizer.state == .began { parent?.onUserMove() }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
@@ -311,7 +255,6 @@ struct PharmacyMapView: UIViewRepresentable {
 
         /// The cone sits under the system's dot, which is why it is a subview of it, not a view of its own.
         func mapView(_ mapView: MKMapView, didAdd views: [MKAnnotationView]) {
-            flight?.didAdd(views)
             guard let dot = views.first(where: { $0.annotation is MKUserLocation }) else { return }
             // The system's dot is not drawn in the middle of its view.
             var isSystemDot = true
@@ -320,14 +263,6 @@ struct PharmacyMapView: UIViewRepresentable {
             cone.mapHeading = mapView.camera.heading
             dot.insertSubview(cone, at: 0)
         }
-
-        func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
-            isRegionChanging = true
-            // The flight moves the map by a hair itself; any other move of it ends the flight, its picture would not fit.
-            if let flight, CACurrentMediaTime() - flight.nudgedAt > 0.3 { flight.finish(cancelled: true) }
-        }
-
-        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) { isRegionChanging = false }
 
         func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
             cone.mapHeading = mapView.camera.heading

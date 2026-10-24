@@ -22,7 +22,6 @@
 		566D2447C917E11FA07C39A7 /* PharmacyDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEDC7B6D15FDA9AA75EAD137 /* PharmacyDetailsView.swift */; };
 		5CB8FEC729F59B6348A00B54 /* PharmacyCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C81F6BDA0A986C2A8323481 /* PharmacyCache.swift */; };
 		6196546C96AFC02CB903C29F /* LaunchPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6893296F639BCD9FC9D9A4BA /* LaunchPerformanceTests.swift */; };
-		61C781B12FB47175E5FBD4FD /* MarkerFlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01347CCE20E1D6C574DB016A /* MarkerFlight.swift */; };
 		643D0133BF36232776A0391B /* PharmacyAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5E127CFD7C9B5B950927F9 /* PharmacyAPI.swift */; };
 		6C4065B4B478FF1DABF5B14C /* PharmacyAnnotationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 290CD946DD4779291A03CF00 /* PharmacyAnnotationViews.swift */; };
 		6CE832EF8007FC8BA6AFDAF0 /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9D75A5032DA483823A4532 /* MapScreen.swift */; };
@@ -59,7 +58,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		01347CCE20E1D6C574DB016A /* MarkerFlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkerFlight.swift; sourceTree = "<group>"; };
 		0847FD2130F82E363815F823 /* CyprusPharmaciesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CyprusPharmaciesApp.swift; sourceTree = "<group>"; };
 		16B274A08E63F2A011C63C5A /* DutyHours.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DutyHours.swift; sourceTree = "<group>"; };
 		285973F411E0E7A8B8AB56A7 /* AppIcon.icon */ = {isa = PBXFileReference; path = AppIcon.icon; sourceTree = "<group>"; };
@@ -234,7 +232,6 @@
 				4930A13AFE6207CFD18D39AC /* HeadingCone.swift */,
 				BD9D75A5032DA483823A4532 /* MapScreen.swift */,
 				4805EDEC6908E14D0A434449 /* MapViewModel.swift */,
-				01347CCE20E1D6C574DB016A /* MarkerFlight.swift */,
 				290CD946DD4779291A03CF00 /* PharmacyAnnotationViews.swift */,
 				BF30D32F5EADF38DCBDB7B64 /* PharmacyMapView.swift */,
 			);
@@ -444,7 +441,6 @@
 				E523BC6135750FE42DCD74A5 /* LocationService.swift in Sources */,
 				6CE832EF8007FC8BA6AFDAF0 /* MapScreen.swift in Sources */,
 				48947D16029C997615BC50DD /* MapViewModel.swift in Sources */,
-				61C781B12FB47175E5FBD4FD /* MarkerFlight.swift in Sources */,
 				0B957BBAFE199ECC28D22742 /* Navigator.swift in Sources */,
 				2FA6F7A9752067C4A3893B25 /* NetworkMonitor.swift in Sources */,
 				30A598241CFC93C7BECAE8AA /* Pharmacy.swift in Sources */,

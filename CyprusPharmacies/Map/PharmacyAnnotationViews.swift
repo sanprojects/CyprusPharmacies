@@ -8,18 +8,14 @@ import SwiftUI
 import UIKit
 
 final class PharmacyAnnotation: NSObject, MKAnnotation {
-    private(set) var pharmacy: Pharmacy
-    /// Observable, so that setting it inside a `UIView` animation block moves the marker smoothly.
-    @objc dynamic var coordinate: CLLocationCoordinate2D
+    let pharmacy: Pharmacy
+    let coordinate: CLLocationCoordinate2D
     var title: String? { pharmacy.name }
 
     init(_ pharmacy: Pharmacy) {
         self.pharmacy = pharmacy
         self.coordinate = pharmacy.coordinate
     }
-
-    /// The same marker now stands for another pharmacy (it flies there when the day changes); the coordinate is set apart.
-    func retarget(to pharmacy: Pharmacy) { self.pharmacy = pharmacy }
 }
 
 enum MapStyle {
@@ -258,24 +254,7 @@ final class GlassMarkerView: UIView {
     }
 }
 
-/// A marker that can be held out of sight while a day's flight is on, whatever MapKit does to it meanwhile.
-class MarkerView: MKAnnotationView {
-    /// Set on the markers the flight has not given their turn yet; MapKit shows what it makes for a frame or two otherwise.
-    /// It is a mask, not `isHidden` or `alpha`, which stay MapKit's to say what it shows.
-    var isHeld = false {
-        didSet { layer.mask = isHeld ? CALayer() : nil }
-    }
-
-    /// Whether MapKit has the marker on the screen, held or not; it keeps views, and annotations, for markers it no longer shows.
-    var isOnMap: Bool { !isHidden && alpha > 0 && layer.opacity > 0 && superview != nil }
-
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        isHeld = false
-    }
-}
-
-final class PharmacyAnnotationView: MarkerView {
+final class PharmacyAnnotationView: MKAnnotationView {
     fileprivate static let diameter: CGFloat = 44
     private static let selectedScale: CGFloat = 1.5
     private static let hasGlass = if #available(iOS 26, *) { true } else { false }
@@ -335,29 +314,8 @@ final class PharmacyAnnotationView: MarkerView {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        land()
         show(selected: false)
     }
-
-    /// A pin that flies in the day's change: its drawing starts `offset` away from where the coordinate is, and comes there.
-    func fly(from offset: CGPoint, duration: TimeInterval) {
-        guard hypot(offset.x, offset.y) > 0.5 else { return }
-        content.layer.removeAllAnimations()
-        content.alpha = 1
-        content.transform = CGAffineTransform(translationX: offset.x, y: offset.y)
-        UIView.animate(withDuration: duration, delay: 0, options: [.curveEaseInOut, .allowUserInteraction]) {
-            self.content.transform = .identity
-        }
-    }
-
-    /// A flight cut short: the pin is where its coordinate is.
-    func land() {
-        content.layer.removeAllAnimations()
-        content.transform = .identity
-        content.alpha = 1
-    }
-
-    func refreshLabel() { accessibilityLabel = annotation?.title ?? "Pharmacy" }
 
     override func prepareForDisplay() {
         super.prepareForDisplay()
@@ -421,7 +379,7 @@ final class PharmacyAnnotationView: MarkerView {
     }
 }
 
-final class ClusterAnnotationView: MarkerView {
+final class ClusterAnnotationView: MKAnnotationView {
     /// The glass badge on iOS 26+, as the head of a pin.
     private var glass: UIView?
 
@@ -448,28 +406,6 @@ final class ClusterAnnotationView: MarkerView {
     override func prepareForDisplay() {
         super.prepareForDisplay()
         updateBadge()
-    }
-
-    /// A badge that flies in the day's change: it is drawn `offset` away from where it is, and comes there.
-    func fly(from offset: CGPoint, duration: TimeInterval) {
-        guard hypot(offset.x, offset.y) > 0.5 else { return }
-        layer.removeAllAnimations()
-        alpha = 1
-        transform = CGAffineTransform(translationX: offset.x, y: offset.y)
-        UIView.animate(withDuration: duration, delay: 0, options: [.curveEaseInOut, .allowUserInteraction]) {
-            self.transform = .identity
-        }
-    }
-
-    /// A flight cut short: the badge is where it is.
-    func land() {
-        layer.removeAllAnimations()
-        transform = .identity
-    }
-
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        land()
     }
 
     private func updateBadge() {
