@@ -149,11 +149,9 @@ final class MarkerFlight {
         for (id, view) in after.pins {
             view.isHidden = false
             let new = after.points[id] ?? .zero
-            if let ghost = pinGhosts.removeValue(forKey: id), let old = before.points[id] {
-                ghost.removeFromSuperview()
-                view.fly(from: CGPoint(x: old.x - new.x, y: old.y - new.y), duration: duration)
-            } else if let old = before.points[id] {
-                // It was inside a cluster that has fallen apart.
+            pinGhosts.removeValue(forKey: id)?.removeFromSuperview()
+            if let old = before.points[id] {
+                // Either it was a pin before, or inside a cluster that has fallen apart.
                 view.fly(from: CGPoint(x: old.x - new.x, y: old.y - new.y), duration: duration)
             } else if arriving.contains(id) {
                 view.appear()

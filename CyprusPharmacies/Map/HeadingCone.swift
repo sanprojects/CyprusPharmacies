@@ -4,6 +4,7 @@
 //
 
 import CoreLocation
+import SwiftUI
 import UIKit
 
 /// The beam of light in front of the user's dot, as in Apple Maps: points where the phone's top edge points.
@@ -50,9 +51,10 @@ final class HeadingConeView: UIView {
     }
 }
 
-/// Compass heading while the map shows the user's location.
+/// Compass heading of one consumer: the map's cone while it shows the user's location.
 final class HeadingTracker: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
+    private var isRunning = false
     var onChange: ((CLLocationDirection?) -> Void)?
 
     override init() {
@@ -63,7 +65,8 @@ final class HeadingTracker: NSObject, CLLocationManagerDelegate {
 
     /// No compass (a simulator, an old device) simply gives no heading.
     func setRunning(_ running: Bool) {
-        guard CLLocationManager.headingAvailable() else { return }
+        guard running != isRunning, CLLocationManager.headingAvailable() else { return }
+        isRunning = running
         if running {
             manager.startUpdatingHeading()
         } else {
@@ -74,7 +77,61 @@ final class HeadingTracker: NSObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         // A negative accuracy means the compass is not calibrated: no reliable direction.
-        guard newHeading.headingAccuracy >= 0 else { return onChange?(nil) ?? () }
+        guard newHeading.headingAccuracy >= 0 else {
+            onChange?(nil)
+            return
+        }
         onChange?(newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading)
     }
+}
+
+/// One compass for all the arrows on screen: a list of cards must not run a heading manager per card.
+@MainActor @Observable
+final class HeadingSource {
+    static let shared = HeadingSource()
+
+    private(set) var heading: CLLocationDirection?
+    private var users = 0
+    private let tracker = HeadingTracker()
+
+    private init() {
+        tracker.onChange = { [weak self] in self?.heading = $0 }
+    }
+
+    /// The compass runs while at least one arrow is on screen.
+    func use() {
+        users += 1
+        tracker.setRunning(true)
+    }
+
+    func release() {
+        users -= 1
+        if users == 0 { tracker.setRunning(false) }
+    }
+}
+
+/// The location arrow of the map's own button, turned toward the pharmacy: with the compass it follows where the phone
+/// points, without it the arrow shows the direction on a north-up map.
+struct BearingIcon: View {
+    /// Direction to the pharmacy, degrees clockwise from north.
+    let bearing: CLLocationDirection
+
+    /// Unwrapped, so a turn through north takes the short way round instead of spinning.
+    @State private var angle: Double = 0
+
+    var body: some View {
+        Image(systemName: "location.north.fill")
+            .rotationEffect(.degrees(angle))
+            .onAppear {
+                HeadingSource.shared.use()
+                angle = target
+            }
+            .onDisappear { HeadingSource.shared.release() }
+            .onChange(of: target) { _, new in
+                let delta = (new - angle + 540).truncatingRemainder(dividingBy: 360) - 180
+                withAnimation(.smooth) { angle += delta }
+            }
+    }
+
+    private var target: Double { bearing - (HeadingSource.shared.heading ?? 0) }
 }

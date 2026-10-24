@@ -230,22 +230,12 @@ struct PharmacyDetailsView: View {
 
     /// Direction to the pharmacy when the user's position is known.
     private var bearing: CLLocationDirection? {
-        userCoordinate.map { Self.bearing(from: $0, to: pharmacy.coordinate) }
-    }
-
-    /// Initial great-circle bearing from `start` to `end`, in degrees clockwise from north.
-    static func bearing(from start: CLLocationCoordinate2D, to end: CLLocationCoordinate2D) -> CLLocationDirection {
-        let lat1 = start.latitude * .pi / 180, lat2 = end.latitude * .pi / 180
-        let dLon = (end.longitude - start.longitude) * .pi / 180
-        let y = sin(dLon) * cos(lat2)
-        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
-        return (atan2(y, x) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
+        userCoordinate?.bearing(to: pharmacy.coordinate)
     }
 
     /// "2.4 km away" or, once MapKit answers, "2.4 km · 7 min by car".
     static func travelText(distance: CLLocationDistance, travelTime: TimeInterval?) -> String {
-        let length = Measurement(value: distance, unit: UnitLength.meters)
-            .formatted(.measurement(width: .abbreviated, usage: .road))
+        let length = distance.roadText
         guard let travelTime else { return "\(length) away" }
         let minutes = max(1, Int((travelTime / 60).rounded()))
         let time = Duration.seconds(minutes * 60).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
@@ -292,35 +282,6 @@ extension DetailRow where Icon == Image {
     init(systemImage: String, @ViewBuilder content: () -> Content) {
         self.init(icon: { Image(systemName: systemImage) }, content: content)
     }
-}
-
-/// The location arrow of the map's own button, turned toward the pharmacy: with the compass it follows where the phone
-/// points, without it the arrow shows the direction on a north-up map.
-struct BearingIcon: View {
-    /// Direction to the pharmacy, degrees clockwise from north.
-    let bearing: CLLocationDirection
-
-    @State private var tracker = HeadingTracker()
-    @State private var heading: CLLocationDirection?
-    /// Unwrapped, so a turn through north takes the short way round instead of spinning.
-    @State private var angle: Double = 0
-
-    var body: some View {
-        Image(systemName: "location.north.fill")
-            .rotationEffect(.degrees(angle))
-            .onAppear {
-                tracker.onChange = { heading = $0 }
-                tracker.setRunning(true)
-                angle = target
-            }
-            .onDisappear { tracker.setRunning(false) }
-            .onChange(of: target) { _, new in
-                let delta = (new - angle + 540).truncatingRemainder(dividingBy: 360) - 180
-                withAnimation(.smooth) { angle += delta }
-            }
-    }
-
-    private var target: Double { bearing - (heading ?? 0) }
 }
 
 /// Separator that starts under the text, not under the icon.

@@ -187,11 +187,7 @@ struct MapScreen: View {
                 swipedAt = Date()
                 let across = value.translation.width, along = value.translation.height
                 guard abs(across) > 50, abs(across) > abs(along) * 1.5 else { return }
-                if across < 0 {
-                    if model.canGoToNextDay { model.nextDay() }
-                } else if model.canGoToPreviousDay {
-                    model.previousDay()
-                }
+                if across < 0 { model.nextDay() } else { model.previousDay() }
             }
         )
         .animation(.smooth, value: model.offset)

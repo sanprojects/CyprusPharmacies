@@ -318,9 +318,7 @@ final class PharmacyAnnotationView: MKAnnotationView {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        content.layer.removeAllAnimations()
-        content.transform = .identity
-        content.alpha = 1
+        land()
         show(selected: false)
     }
 
@@ -352,15 +350,6 @@ final class PharmacyAnnotationView: MKAnnotationView {
         content.layer.removeAllAnimations()
         content.transform = .identity
         content.alpha = 1
-    }
-
-    /// A pin the next day has no place for shrinks into its tip; the caller takes the annotation off afterwards.
-    func disappear(completion: @escaping () -> Void) {
-        content.layer.removeAllAnimations()
-        UIView.animate(withDuration: 0.3, delay: 0, options: [.allowUserInteraction, .curveEaseIn]) {
-            self.content.alpha = 0
-            self.content.transform = self.pivot(scale: 0.3)
-        } completion: { _ in completion() }
     }
 
     func refreshLabel() { accessibilityLabel = annotation?.title ?? "Pharmacy" }

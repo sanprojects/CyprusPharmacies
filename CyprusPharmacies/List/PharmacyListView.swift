@@ -113,15 +113,16 @@ private struct PharmacyCard: View {
                 isDirectionsDialogShown = true
             } label: {
                 VStack(spacing: 2) {
-                    if let userCoordinate {
-                        BearingIcon(bearing: PharmacyDetailsView.bearing(from: userCoordinate, to: pharmacy.coordinate))
-                            .font(.title2)
-                    } else {
-                        Image(systemName: "car.fill")
-                            .font(.title2)
+                    Group {
+                        if let userCoordinate {
+                            BearingIcon(bearing: userCoordinate.bearing(to: pharmacy.coordinate))
+                        } else {
+                            Image(systemName: "car.fill")
+                        }
                     }
-                    if let distanceText {
-                        Text(distanceText)
+                    .font(.title2)
+                    if let distance {
+                        Text(distance.roadText)
                             .font(.caption.weight(.semibold))
                             .monospacedDigit()
                             .lineLimit(1)
@@ -133,7 +134,7 @@ private struct PharmacyCard: View {
             .glassButtonStyle(prominent: true)
             .buttonBorderShape(.roundedRectangle(radius: 16))
             .accessibilityLabel("Directions")
-            .accessibilityValue(distanceText ?? "")
+            .accessibilityValue(distance?.roadText ?? "")
             .confirmationDialog("Directions", isPresented: $isDirectionsDialogShown, titleVisibility: .visible) {
                 ForEach(Navigator.allCases) { navigator in
                     Button(navigator.rawValue) { navigator.open(to: pharmacy.coordinate) }
@@ -173,13 +174,6 @@ private struct PharmacyCard: View {
         .fixedSize(horizontal: false, vertical: true)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-    }
-
-    /// "2.4 km", under the arrow on Directions.
-    private var distanceText: String? {
-        distance.map {
-            Measurement(value: $0, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road))
-        }
     }
 
     /// "Open now, until 11:00 PM"; the distance is on the Directions button.

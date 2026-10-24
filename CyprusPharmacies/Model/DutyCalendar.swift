@@ -21,6 +21,15 @@ struct DutyCalendar {
         return calendar
     }
 
+    private func formatter(_ format: String, locale: String = "en_GB") -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = timeZone
+        formatter.locale = Locale(identifier: locale)
+        formatter.dateFormat = format
+        return formatter
+    }
+
     /// Today's duty day + `offset`, at the current time of day.
     private func dutyDate(offset: Int) -> Date {
         let now = now()
@@ -45,30 +54,8 @@ struct DutyCalendar {
 
     /// "Fri 23 Oct 2026" for a `YYYY-MM-DD` key; the key itself when it does not parse.
     func displayTitle(forDayKey key: String) -> String {
-        let parser = DateFormatter()
-        parser.calendar = calendar
-        parser.timeZone = timeZone
-        parser.locale = Locale(identifier: "en_US_POSIX")
-        parser.dateFormat = "yyyy-MM-dd"
-        guard let date = parser.date(from: key) else { return key }
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = timeZone
-        formatter.locale = Locale(identifier: "en_GB")
-        formatter.dateFormat = "EEE d MMM yyyy"
-        return formatter.string(from: date)
-    }
-
-    /// Item of the day menu: "Today, Fri 23 Oct", "Tomorrow, Sat 24 Oct", then "Sun 25 Oct".
-    func menuTitle(offset: Int) -> String {
-        let day = dutyDate(offset: offset)
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = timeZone
-        formatter.locale = Locale(identifier: "en_GB")
-        formatter.dateFormat = "EEE d MMM"
-        let date = formatter.string(from: day)
-        return offset < 2 ? "\(relativeTitle(offset: offset)), \(date)" : date
+        guard let date = formatter("yyyy-MM-dd", locale: "en_US_POSIX").date(from: key) else { return key }
+        return formatter("EEE d MMM yyyy").string(from: date)
     }
 
     func relativeTitle(offset: Int) -> String {
@@ -101,11 +88,7 @@ struct DutyCalendar {
         let calendar = calendar
         let first = calendar.startOfDay(for: dutyDate(offset: 0))
         let last = calendar.startOfDay(for: dutyDate(offset: Self.maxOffset))
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = timeZone
-        formatter.locale = Locale(identifier: "en_GB")
-        formatter.dateFormat = "LLLL yyyy"
+        let monthTitle = formatter("LLLL yyyy")
 
         var months: [Month] = []
         var cursor = calendar.dateInterval(of: .month, for: first)?.start ?? first
@@ -123,7 +106,7 @@ struct DutyCalendar {
             cells += Array(repeating: nil, count: (7 - cells.count % 7) % 7)
             let weeks = stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<$0 + 7]) }
             let shown = weeks.filter { $0.contains { $0?.offset != nil } }.flatMap { $0 }
-            months.append(Month(title: formatter.string(from: cursor), cells: shown))
+            months.append(Month(title: monthTitle.string(from: cursor), cells: shown))
             guard let next = calendar.date(byAdding: .month, value: 1, to: cursor) else { break }
             cursor = next
         }

@@ -109,3 +109,21 @@ struct PhoneOption: Hashable {
         return URL(string: "tel:\(dialable)")
     }
 }
+
+extension CLLocationCoordinate2D {
+    /// Initial great-circle bearing to `end`, in degrees clockwise from north.
+    func bearing(to end: CLLocationCoordinate2D) -> CLLocationDirection {
+        let lat1 = latitude * .pi / 180, lat2 = end.latitude * .pi / 180
+        let dLon = (end.longitude - longitude) * .pi / 180
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        return (atan2(y, x) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
+    }
+}
+
+extension CLLocationDistance {
+    /// "700 m", "2.4 km", in the user's units.
+    var roadText: String {
+        Measurement(value: self, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road))
+    }
+}

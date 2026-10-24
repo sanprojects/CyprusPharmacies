@@ -99,9 +99,6 @@ final class DutyCalendarTests: XCTestCase {
         XCTAssertEqual(calendar.relativeTitle(offset: 0), "Today")
         XCTAssertEqual(calendar.relativeTitle(offset: 1), "Tomorrow")
         XCTAssertEqual(calendar.relativeTitle(offset: 7), "In 7 days")
-        XCTAssertEqual(calendar.menuTitle(offset: 0), "Today, Fri 23 Oct", "01:30 is still the duty of the 23rd")
-        XCTAssertEqual(calendar.menuTitle(offset: 1), "Tomorrow, Sat 24 Oct")
-        XCTAssertEqual(calendar.menuTitle(offset: 10), "Mon 2 Nov")
     }
 
     func testOffsetRange() {
@@ -236,7 +233,7 @@ final class BearingTests: XCTestCase {
     private let origin = CLLocationCoordinate2D(latitude: 35, longitude: 33)
 
     private func bearing(toLat lat: Double, lng: Double) -> Double {
-        PharmacyDetailsView.bearing(from: origin, to: CLLocationCoordinate2D(latitude: lat, longitude: lng))
+        origin.bearing(to: CLLocationCoordinate2D(latitude: lat, longitude: lng))
     }
 
     func testCardinalDirections() {
