@@ -35,13 +35,12 @@ enum MapStyle {
 /// Markers drawn in code, so they are sharp at every size, in the shape of the system marker: a round head in a white
 /// rim with a short pointed tail, a small dot on the coordinate under the tip, and a soft shadow behind.
 enum MarkerArt {
-    /// A pin: `tipOffset` is where the coordinate (the dot) sits below the image center; `head` and `tail` (its tip)
-    /// are where a glass marker goes: halfway into the rim, which is laid over the glass and hides its edges.
+    /// A pin: `tipOffset` is where the coordinate (the dot) sits below the image center; `head` is where the glass
+    /// goes: halfway into the rim, which is laid over the glass and hides its edges.
     struct Pin {
         let image: UIImage
         let tipOffset: CGFloat
         let head: CGRect
-        let tail: CGPoint
     }
 
     /// Rim width for a marker `side` wide.
@@ -66,18 +65,20 @@ enum MarkerArt {
         drop.close()
         let head = CGRect(x: center.x - radius, y: center.y - radius, width: diameter, height: diameter)
         let colors = MapStyle.markerColors(highContrast: highContrast)
-        let glassTip = tip.y - rim / 2.squareRoot()
 
         let image = UIGraphicsImageRenderer(size: size).image { context in
             let cg = context.cgContext
             drawBody(drop, rim: rim, in: cg, scale: scale)
             if glass {
                 clearInside(drop, rim: rim, in: cg)
-                // The glass's rounded corner stops short of the sharp inner tip: the rim is a little thicker there.
+                // The tail is not glass: white under the head's rim, so only the head is a glass marker, as a cluster.
                 cg.saveGState()
                 drop.addClip()
+                cg.addPath(CGPath(ellipseIn: head.insetBy(dx: rim, dy: rim), transform: nil))
+                cg.addRect(CGRect(origin: .zero, size: size))
+                cg.clip(using: .evenOdd)
                 UIColor.white.setFill()
-                cg.fill(CGRect(x: 0, y: glassTip - 1.6 * rim, width: size.width, height: size.height))
+                cg.fill(CGRect(origin: .zero, size: size))
                 cg.restoreGState()
             } else {
                 drawFill(drop, rim: rim, head: head, colors: colors, in: cg)
@@ -89,9 +90,7 @@ enum MarkerArt {
             colors[1].setFill()
             UIBezierPath(ovalIn: spot.bounds.insetBy(dx: scale, dy: scale)).fill()
         }
-        // Along the tail's sides, about 45° off the vertical, half the rim is rim / √2 up from the tip.
-        return Pin(image: image, tipOffset: dot.y - size.height / 2, head: head.insetBy(dx: rim / 2, dy: rim / 2),
-                   tail: CGPoint(x: tip.x, y: glassTip))
+        return Pin(image: image, tipOffset: dot.y - size.height / 2, head: head.insetBy(dx: rim / 2, dy: rim / 2))
     }
 
     /// A round badge `side` wide in a white rim, with room for its shadow; the count is drawn by the caller in `badge`,
@@ -181,21 +180,17 @@ enum MarkerArt {
     }
 }
 
-/// A translucent Liquid Glass marker inside the drawn rim, the map showing through it tinted light green. Glass takes
-/// no free outline, so a pin is a round head and a rounded square turned on its corner below it, which the container
-/// melts into one drop.
+/// A translucent Liquid Glass round head inside the drawn rim, the map showing through it tinted light green: the badge
+/// of a cluster, and the head of a pin, whose tail is drawn in white.
 @available(iOS 26, *)
 final class GlassMarkerView: UIVisualEffectView {
     /// Content goes into its `contentView`.
     let head = UIVisualEffectView()
-    private let tail = UIVisualEffectView()
 
     init() {
         super.init(effect: UIGlassContainerEffect())
         isUserInteractionEnabled = false
         head.cornerConfiguration = .capsule()
-        tail.transform = CGAffineTransform(rotationAngle: .pi / 4)
-        contentView.addSubview(tail)
         contentView.addSubview(head)
     }
 
@@ -203,22 +198,18 @@ final class GlassMarkerView: UIVisualEffectView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    /// A pin whose tail ends at `tip`, or a round badge when `tip` is nil.
-    func show(head frame: CGRect, tip: CGPoint?, highContrast: Bool) {
-        let container = UIGlassContainerEffect()
-        container.spacing = frame.width * 0.2
-        effect = container
-        head.effect = Self.glass(highContrast: highContrast)
+    private var shown: (width: CGFloat, highContrast: Bool)?
+
+    /// The glass effects are rebuilt only when their look changes: selecting a pin only moves and resizes the head.
+    func show(head frame: CGRect, highContrast: Bool) {
+        if shown?.width != frame.width || shown?.highContrast != highContrast {
+            shown = (frame.width, highContrast)
+            let container = UIGlassContainerEffect()
+            container.spacing = frame.width * 0.2
+            effect = container
+            head.effect = Self.glass(highContrast: highContrast)
+        }
         head.frame = frame
-        tail.isHidden = tip == nil
-        guard let tip else { return }
-        let side = frame.width * 0.42
-        let corner = side * 0.12
-        tail.effect = Self.glass(highContrast: highContrast)
-        tail.bounds = CGRect(x: 0, y: 0, width: side, height: side)
-        tail.cornerConfiguration = .corners(radius: .fixed(corner))
-        // Its lower corner, rounded off, ends on the tip.
-        tail.center = CGPoint(x: tip.x, y: tip.y - side / 2.squareRoot() + corner * (2.squareRoot() - 1))
     }
 
     private static func glass(highContrast: Bool) -> UIGlassEffect {
@@ -231,7 +222,7 @@ final class GlassMarkerView: UIVisualEffectView {
 }
 
 final class PharmacyAnnotationView: MKAnnotationView {
-    private static let diameter: CGFloat = 30
+    private static let diameter: CGFloat = 44
     private static let selectedScale: CGFloat = 1.5
     private static let hasGlass = if #available(iOS 26, *) { true } else { false }
     /// Pins by Increase Contrast, then unselected and selected; the selected one is drawn at its size, so it stays sharp
@@ -342,7 +333,7 @@ final class PharmacyAnnotationView: MKAnnotationView {
             rimView.image = art.image
             rimView.frame = bounds
             marker.frame = bounds
-            marker.show(head: art.head, tip: art.tail, highContrast: highContrast)
+            marker.show(head: art.head, highContrast: highContrast)
             cross.frame = marker.head.bounds.insetBy(dx: art.head.width * 0.24, dy: art.head.width * 0.24)
         } else {
             image = art.image
@@ -404,7 +395,7 @@ final class ClusterAnnotationView: MKAnnotationView {
             image = MarkerArt.badge(side: side, highContrast: highContrast, glass: true)
             let inset = MarkerArt.padding(side: side) + MarkerArt.rim(side: side)
             marker.frame = bounds
-            marker.show(head: bounds.insetBy(dx: inset, dy: inset), tip: nil, highContrast: highContrast)
+            marker.show(head: bounds.insetBy(dx: inset, dy: inset), highContrast: highContrast)
             countLabel.text = "\(count)"
             countLabel.font = font
             countLabel.frame = marker.head.bounds
