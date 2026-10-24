@@ -28,6 +28,11 @@ targets:
     platform: iOS
     sources:
       - path: CyprusPharmacies
+        excludes:
+          - AppIcon.icon
+      # An Icon Composer bundle is one file for Xcode, not a folder of resources.
+      - path: CyprusPharmacies/AppIcon.icon
+        type: file
     configFiles:
       Debug: Config/App.xcconfig
       Release: Config/App.xcconfig

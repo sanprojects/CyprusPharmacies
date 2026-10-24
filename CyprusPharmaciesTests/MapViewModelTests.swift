@@ -131,19 +131,19 @@ final class MapViewModelTests: XCTestCase {
     }
 
     func testDayBounds() async {
-        for offset in 0...10 { api.results[offset] = .success([]) }
+        for offset in 0...30 { api.results[offset] = .success([]) }
         let model = makeModel()
         model.start()
         XCTAssertFalse(model.canGoToPreviousDay)
         model.previousDay()
         XCTAssertEqual(model.offset, 0)
 
-        for _ in 0..<15 { model.nextDay() }
-        XCTAssertEqual(model.offset, 10)
+        for _ in 0..<40 { model.nextDay() }
+        XCTAssertEqual(model.offset, 30)
         XCTAssertFalse(model.canGoToNextDay)
-        XCTAssertEqual(model.dayKey, "2026-11-02")
+        XCTAssertEqual(model.dayKey, "2026-11-22")
         await settle()
-        XCTAssertFalse(api.requested.contains { $0 > 10 })
+        XCTAssertFalse(api.requested.contains { $0 > 30 })
     }
 
     func testStaleResultOfPreviousDayIsIgnored() async {
@@ -204,6 +204,20 @@ final class MapViewModelTests: XCTestCase {
 
         model.nextDay()
         XCTAssertNil(model.selected)
+    }
+
+    func testHasPharmaciesFollowsTheCachedRosterAndTheDayOnScreen() async {
+        api.results[0] = .success([pharmacy("A")])
+        cache.days["2026-10-24"] = CachedDay(dayKey: "2026-10-24", savedAt: Date(), pharmacies: [pharmacy("B")])
+        cache.days["2026-10-25"] = CachedDay(dayKey: "2026-10-25", savedAt: Date(), pharmacies: [])
+        let model = makeModel()
+        model.start()
+        await settle()
+
+        XCTAssertTrue(model.hasPharmacies(offset: 0), "the day on screen counts by what it shows")
+        XCTAssertTrue(model.hasPharmacies(offset: 1))
+        XCTAssertFalse(model.hasPharmacies(offset: 2), "cached and empty")
+        XCTAssertFalse(model.hasPharmacies(offset: 3), "not cached")
     }
 
     func testStartRemovesPastDays() {
@@ -331,6 +345,17 @@ final class MapViewModelTests: XCTestCase {
 
         XCTAssertEqual(model.mapCommand?.kind, .showCity(CLLocationCoordinate2D(latitude: 34.68, longitude: 33.04)))
         XCTAssertEqual(location.accessRequests, 0)
+    }
+
+    func testLaunchWithAccessButNoFixShowsIPCity() async {
+        api.ipCityResult = CLLocationCoordinate2D(latitude: 34.68, longitude: 33.04)
+        location.access = .authorized
+        location.location = nil
+        let model = makeModel()
+        model.start()
+        await settle()
+
+        XCTAssertEqual(model.mapCommand?.kind, .showCity(CLLocationCoordinate2D(latitude: 34.68, longitude: 33.04)))
     }
 
     func testLaunchZoomLeavesMapAloneOnceUserMovedIt() async {

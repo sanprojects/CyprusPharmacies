@@ -12,6 +12,8 @@ struct PharmacyListView: View {
     let pharmacies: [Pharmacy]
     let isLoading: Bool
     let distance: (Pharmacy) -> CLLocationDistance?
+    /// Where the user is, when known: Directions then points to the pharmacy.
+    let userCoordinate: CLLocationCoordinate2D?
     let onSelect: (Pharmacy) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -33,7 +35,7 @@ struct PharmacyListView: View {
                     LazyVStack(spacing: 10) {
                         ForEach(Array(pharmacies.enumerated()), id: \.element.id) { index, pharmacy in
                             let distance = distance(pharmacy)
-                            PharmacyCard(pharmacy: pharmacy, distance: distance,
+                            PharmacyCard(pharmacy: pharmacy, distance: distance, userCoordinate: userCoordinate,
                                          // The list is sorted by distance once it is known.
                                          isNearest: index == 0 && distance != nil,
                                          onSelect: { onSelect(pharmacy) })
@@ -49,6 +51,7 @@ struct PharmacyListView: View {
                 Color(.systemGroupedBackground).ignoresSafeArea()
             }
         }
+        .sheetGlass()
     }
 
     /// The day in the middle and Close on the right, as in Maps' Directions sheet.
@@ -85,6 +88,7 @@ struct PharmacyListView: View {
 private struct PharmacyCard: View {
     let pharmacy: Pharmacy
     let distance: CLLocationDistance?
+    let userCoordinate: CLLocationCoordinate2D?
     let isNearest: Bool
     let onSelect: () -> Void
 
@@ -108,13 +112,28 @@ private struct PharmacyCard: View {
             Button {
                 isDirectionsDialogShown = true
             } label: {
-                Image(systemName: "car.fill")
-                    .font(.title2)
-                    .frame(width: 64, height: 64)
+                VStack(spacing: 2) {
+                    if let userCoordinate {
+                        BearingIcon(bearing: PharmacyDetailsView.bearing(from: userCoordinate, to: pharmacy.coordinate))
+                            .font(.title2)
+                    } else {
+                        Image(systemName: "car.fill")
+                            .font(.title2)
+                    }
+                    if let distanceText {
+                        Text(distanceText)
+                            .font(.caption.weight(.semibold))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                }
+                .frame(width: 64, height: 64)
             }
             .glassButtonStyle(prominent: true)
             .buttonBorderShape(.roundedRectangle(radius: 16))
             .accessibilityLabel("Directions")
+            .accessibilityValue(distanceText ?? "")
             .confirmationDialog("Directions", isPresented: $isDirectionsDialogShown, titleVisibility: .visible) {
                 ForEach(Navigator.allCases) { navigator in
                     Button(navigator.rawValue) { navigator.open(to: pharmacy.coordinate) }
@@ -156,13 +175,15 @@ private struct PharmacyCard: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// "2.4 km · Open now, until 11:00 PM", either part when only it is known.
-    private var summary: String? {
-        let length = distance.map {
+    /// "2.4 km", under the arrow on Directions.
+    private var distanceText: String? {
+        distance.map {
             Measurement(value: $0, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road))
         }
-        let hours = DutyHours(description: pharmacy.description, dutyDay: pharmacy.date)?.headline(at: .now)
-        let parts = [length, hours].compactMap { $0 }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// "Open now, until 11:00 PM"; the distance is on the Directions button.
+    private var summary: String? {
+        DutyHours(description: pharmacy.description, dutyDay: pharmacy.date)?.headline(at: .now)
     }
 }

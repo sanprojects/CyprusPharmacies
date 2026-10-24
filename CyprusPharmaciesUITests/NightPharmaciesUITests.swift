@@ -31,16 +31,21 @@ final class NightPharmaciesUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Apple Maps"].waitForExistence(timeout: 5))
     }
 
-    func testDayMenuShowsTomorrow() {
+    func testCalendarPicksTomorrow() {
         launch(feed: Self.feed)
 
         let dayMenu = app.buttons["dayMenu"]
         XCTAssertTrue(dayMenu.waitForExistence(timeout: 5))
         XCTAssertTrue(dayMenu.label.contains("Today"))
         dayMenu.tap()
-        let tomorrow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Tomorrow")).firstMatch
-        XCTAssertTrue(tomorrow.waitForExistence(timeout: 5))
-        tomorrow.tap()
+        // The duty day turns at 08:00 Cyprus time, so tomorrow's date is counted from the duty day.
+        var nicosia = Calendar(identifier: .gregorian)
+        nicosia.timeZone = TimeZone(identifier: "Asia/Nicosia") ?? .current
+        let duty = Date().addingTimeInterval(-8 * 60 * 60)
+        let tomorrow = nicosia.component(.day, from: duty.addingTimeInterval(24 * 60 * 60))
+        let cell = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "\(tomorrow), ")).firstMatch
+        XCTAssertTrue(cell.waitForExistence(timeout: 5), app.debugDescription)
+        cell.tap()
 
         let shown = NSPredicate(format: "label CONTAINS %@", "Tomorrow")
         expectation(for: shown, evaluatedWith: dayMenu)

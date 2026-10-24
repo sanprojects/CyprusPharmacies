@@ -33,8 +33,15 @@ struct InfoView: View {
             .navigationTitle("Duty pharmacies")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    // The system's round X on iOS 26+; the same round face as the other sheets before.
+                    if #available(iOS 26, *) {
+                        Button(role: .close) { dismiss() }
+                    } else {
+                        Button { dismiss() } label: { CircleButtonLabel(systemImage: "xmark") }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Close")
+                    }
                 }
             }
         }

@@ -105,7 +105,25 @@ final class DutyCalendarTests: XCTestCase {
     }
 
     func testOffsetRange() {
-        XCTAssertEqual(DutyCalendar.offsets, 0...10)
+        XCTAssertEqual(DutyCalendar.offsets, 0...30)
+    }
+
+    func testMonthsCoverTheFeedDaysOnly() {
+        // Fri 23 Oct 2026 + 30 days = Sun 22 Nov 2026: two months, only the weeks that hold a feed day.
+        let months = DutyCalendar(now: { self.morning }).months()
+        XCTAssertEqual(months.map(\.title), ["October 2026", "November 2026"])
+
+        let october = months[0].cells
+        XCTAssertEqual(october.count % 7, 0)
+        XCTAssertEqual(october.first??.day, 19, "the week of the 23rd starts on Mon 19")
+        XCTAssertEqual(october.compactMap { $0 }.last?.day, 31)
+        XCTAssertEqual(october.compactMap { $0 }.filter { $0.offset != nil }.map(\.day), Array(23...31))
+        XCTAssertEqual(october.compactMap { $0 }.first { $0.day == 22 }?.offset, nil, "yesterday is not in the feed")
+
+        let november = months[1].cells
+        XCTAssertEqual(november.count, 28, "Nov 1 is a Sunday: six blanks, then four weeks; the week of the 23rd holds no feed day")
+        XCTAssertEqual(november.prefix(6).compactMap { $0 }.count, 0)
+        XCTAssertEqual(november.compactMap { $0 }.compactMap(\.offset), Array(9...30))
     }
 }
 
@@ -212,4 +230,19 @@ enum Fixture {
     }
 
     private final class BundleToken {}
+}
+
+final class BearingTests: XCTestCase {
+    private let origin = CLLocationCoordinate2D(latitude: 35, longitude: 33)
+
+    private func bearing(toLat lat: Double, lng: Double) -> Double {
+        PharmacyDetailsView.bearing(from: origin, to: CLLocationCoordinate2D(latitude: lat, longitude: lng))
+    }
+
+    func testCardinalDirections() {
+        XCTAssertEqual(bearing(toLat: 36, lng: 33), 0, accuracy: 0.01)
+        XCTAssertEqual(bearing(toLat: 35, lng: 34), 90, accuracy: 0.5)
+        XCTAssertEqual(bearing(toLat: 34, lng: 33), 180, accuracy: 0.01)
+        XCTAssertEqual(bearing(toLat: 35, lng: 32), 270, accuracy: 0.5)
+    }
 }

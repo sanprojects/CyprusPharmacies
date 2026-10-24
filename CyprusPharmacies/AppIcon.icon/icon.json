@@ -1,0 +1,40 @@
+{
+  "fill" : {
+    "automatic-gradient" : "display-p3:0.78000,0.94000,0.81000,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "cross.svg",
+          "name" : "cross"
+        },
+        {
+          "glass" : true,
+          "image-name" : "head.svg",
+          "name" : "head"
+        },
+        {
+          "glass" : true,
+          "image-name" : "rim.svg",
+          "name" : "rim",
+          "opacity" : 0.55
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "iOS"
+    ]
+  }
+}

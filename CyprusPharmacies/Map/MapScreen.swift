@@ -11,6 +11,7 @@ struct MapScreen: View {
     enum Sheet: String, Identifiable {
         case info
         case list
+        case calendar
         var id: String { rawValue }
     }
 
@@ -24,12 +25,15 @@ struct MapScreen: View {
     @Environment(\.openURL) private var openURL
     @State private var topBarBottom: CGFloat = 0
     @State private var sheetHeight: CGFloat = 0
+    @State private var calendarHeight: CGFloat = 0
     @State private var sheet: Sheet?
     /// Asked for while Details was up: shown once that sheet is gone.
     @State private var sheetAfterDetails: Sheet?
     /// Tapped in the list: selected once the list is gone.
     @State private var pharmacyAfterSheet: Pharmacy?
     @State private var hasStarted = false
+    /// When a finger last moved sideways over the date bar: the touch that ends such a swipe is not a tap on a button.
+    @State private var swipedAt = Date.distantPast
 
     var body: some View {
         GeometryReader { root in
@@ -54,28 +58,34 @@ struct MapScreen: View {
                 }
             }
             .onPreferenceChange(TopBarBottomKey.self) { topBarBottom = $0 }
+            // A tick for a pharmacy picked on the map or in the list, a lighter one when its panel goes away.
+            .sensoryFeedback(trigger: model.selected?.id) { _, new in
+                new == nil ? .impact(weight: .light) : .selection
+            }
             .onChange(of: model.selected?.id) { _, _ in
                 // Another pin with a sheet of the same height reports no new height: focus it here.
                 if let pharmacy = model.selected, sheetHeight > 0 {
-                    model.focus(on: pharmacy, bottomInset: sheetHeight + root.safeAreaInsets.bottom)
+                    model.focus(on: pharmacy, bottomInset: sheetHeight)
                 }
             }
             .sheet(isPresented: detailsShown, onDismiss: detailsDismissed) {
                 if let pharmacy = model.selected {
+                    // The sheet's height adds the bottom safe area to the detent; Details ignores it, so it is taken off here.
                     PharmacyDetailsView(
                         pharmacy: pharmacy,
                         distance: model.distance(to: pharmacy),
+                        userCoordinate: model.userLocation?.coordinate,
                         onHeightChange: { height in
                             // Taller content scrolls inside a sheet capped at 3/4 of the screen.
-                            sheetHeight = min(height, root.size.height * Self.maxSheetFraction)
-                            model.focus(on: pharmacy, bottomInset: sheetHeight + root.safeAreaInsets.bottom)
+                            withAnimation(.smooth) { sheetHeight = min(height, root.size.height * Self.maxSheetFraction) }
+                            model.focus(on: pharmacy, bottomInset: sheetHeight)
                         },
                         onClose: { model.select(nil) }
                     )
-                    .id(pharmacy.id)
-                    .presentationDetents([.height(sheetHeight > 0 ? sheetHeight : 320)])
+                    .presentationDetents([.height(sheetHeight > 0 ? max(0, sheetHeight - root.safeAreaInsets.bottom) : 320)])
                     .presentationDragIndicator(.visible)
                     .presentationBackgroundInteraction(.enabled)
+                    .clearSheetBackground()
                 }
             }
         }
@@ -84,18 +94,33 @@ struct MapScreen: View {
             case .info:
                 InfoView()
                     .presentationDetents([.medium, .large])
+            case .calendar:
+                DayCalendarView(
+                    months: model.calendar.months(),
+                    selectedOffset: model.offset,
+                    hasPharmacies: { model.hasPharmacies(offset: $0) },
+                    onSelect: { offset in
+                        model.show(offset: offset)
+                        self.sheet = nil
+                    },
+                    onHeightChange: { calendarHeight = $0 }
+                )
+                .presentationDetents(calendarHeight > 0 ? [.height(calendarHeight), .large] : [.large])
+                .clearSheetBackground()
             case .list:
                 PharmacyListView(
                     title: model.dateTitle,
                     pharmacies: model.sortedPharmacies,
                     isLoading: model.isLoading,
                     distance: { model.distance(to: $0) },
+                    userCoordinate: model.userLocation?.coordinate,
                     onSelect: { pharmacy in
                         pharmacyAfterSheet = pharmacy
                         self.sheet = nil
                     }
                 )
                 .presentationDetents([.medium, .large])
+                .clearSheetBackground()
                 .task { await model.refreshUserLocation() }
             }
         }
@@ -153,25 +178,43 @@ struct MapScreen: View {
         .padding(6)
         .glassBackground(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .dynamicTypeSize(...Self.chromeTextLimit)
-    }
-
-    /// Tapping the date opens a menu of all days the feed has, instead of stepping with the arrows.
-    private var dayMenu: some View {
-        Menu {
-            Picker("Day", selection: Binding(get: { model.offset }, set: { model.show(offset: $0) })) {
-                ForEach(DutyCalendar.offsets, id: \.self) { offset in
-                    Text(model.calendar.menuTitle(offset: offset)).tag(offset)
+        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // A swipe along the bar turns the day, as the arrows do: left for the next day, right for the previous one.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 24)
+            .onChanged { _ in swipedAt = Date() }
+            .onEnded { value in
+                swipedAt = Date()
+                let across = value.translation.width, along = value.translation.height
+                guard abs(across) > 50, abs(across) > abs(along) * 1.5 else { return }
+                if across < 0 {
+                    if model.canGoToNextDay { model.nextDay() }
+                } else if model.canGoToPreviousDay {
+                    model.previousDay()
                 }
             }
+        )
+        .animation(.smooth, value: model.offset)
+        .animation(.smooth, value: model.isLoading)
+        .sensoryFeedback(.selection, trigger: model.offset)
+    }
+
+    /// Tapping the date opens a calendar of the days the feed covers, with the days that have pharmacies marked.
+    private var dayMenu: some View {
+        Button {
+            guard !isSwiping else { return }
+            show(.calendar)
         } label: {
             VStack(spacing: 2) {
                 Text(model.dateTitle)
                     .font(.headline)
                     .monospacedDigit()
+                    .contentTransition(.numericText())
                 HStack(spacing: 6) {
                     Text(model.relativeDayTitle)
+                        .contentTransition(.numericText())
                     if model.isLoading {
-                        ProgressView().controlSize(.mini)
+                        ProgressView().controlSize(.mini).transition(.opacity)
                     }
                 }
                 .font(.subheadline)
@@ -187,12 +230,14 @@ struct MapScreen: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
-        .accessibilityHint("Choose another day")
+        .accessibilityHint("Opens the calendar")
         .accessibilityIdentifier("dayMenu")
     }
 
+    private var isSwiping: Bool { Date().timeIntervalSince(swipedAt) < 0.4 }
+
     private func dayButton(_ title: String, systemImage: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button { if !isSwiping { action() } } label: {
             Image(systemName: systemImage)
                 .font(.title3.weight(.semibold))
                 .frame(width: 44, height: 44)
@@ -228,14 +273,17 @@ struct MapScreen: View {
                     .padding(.vertical, 10)
                     .glassBackground(in: Capsule())
                     .padding(.bottom, 24)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
         }
+        .animation(.smooth, value: model.isDayLoaded && !model.isLoading && model.pharmacies.isEmpty && model.blocking == nil)
     }
 
     private func roundButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.title3)
+                .contentTransition(.symbolEffect(.replace))
                 .frame(width: 44, height: 44)
         }
         .accessibilityLabel(title)

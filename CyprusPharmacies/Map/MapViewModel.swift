@@ -114,6 +114,12 @@ final class MapViewModel {
         Task { await showUserArea() }
     }
 
+    /// Whether the cached roster has pharmacies on duty at `offset`; the day on screen counts by what it shows.
+    func hasPharmacies(offset day: Int) -> Bool {
+        if day == offset { return !pharmacies.isEmpty }
+        return !(cache.load(dayKey: calendar.dayKey(offset: day))?.pharmacies.isEmpty ?? true)
+    }
+
     func previousDay() { show(offset: offset - 1) }
     func nextDay() { show(offset: offset + 1) }
 
@@ -276,19 +282,24 @@ final class MapViewModel {
         return pharmacies.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    /// At launch: the user and the nearest pharmacy with location access, otherwise the city of the IP address.
-    /// Never asks for access, and leaves the map alone once the user has moved it, picked a pharmacy or tapped Locate.
+    /// At launch: the user and the nearest pharmacy with location access, otherwise (no access, or access but no fix) the
+    /// city of the IP address. Never asks for access, and leaves the map alone once the user has moved it, picked a
+    /// pharmacy or tapped Locate.
     private func showUserArea() async {
         let launchCommand = mapCommand?.id
         var mayMove: Bool { !userMovedMap && selected == nil && mapCommand?.id == launchCommand }
 
         if location.access == .authorized {
             await refreshUserLocation()
-            guard let here = userLocation, mayMove else { return }
-            mapCommand = MapCommand(kind: .showUser(here.coordinate, nearest: nearestPharmacy(to: here)?.coordinate))
-        } else if let city = await api.ipCity(), mayMove, location.access != .authorized {
-            mapCommand = MapCommand(kind: .showCity(city))
+            if let here = userLocation {
+                if mayMove {
+                    mapCommand = MapCommand(kind: .showUser(here.coordinate, nearest: nearestPharmacy(to: here)?.coordinate))
+                }
+                return
+            }
         }
+        guard let city = await api.ipCity(), mayMove, userLocation == nil else { return }
+        mapCommand = MapCommand(kind: .showCity(city))
     }
 
     /// Updates `userLocation` without moving the map and without asking for access.

@@ -20,7 +20,7 @@ enum PharmacyAPIError: Error, Equatable {
     }
 }
 
-/// Every day the server has from today on, from `days.php`: the roster is written weekly, so one request covers the week.
+/// Every day the server has from today on, from `days.php`: the roster is written weekly, so one request covers the whole month.
 struct Roster: Decodable, Equatable {
     /// The server's duty day, `YYYY-MM-DD`.
     let today: String

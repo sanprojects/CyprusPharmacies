@@ -13,6 +13,8 @@ struct PharmacyDetailsView: View {
     let pharmacy: Pharmacy
     /// Straight-line distance from the user; nil when their position is unknown.
     let distance: CLLocationDistance?
+    /// The user's position, known only with location access: the address row then points the way.
+    let userCoordinate: CLLocationCoordinate2D?
     let onHeightChange: (CGFloat) -> Void
     let onClose: () -> Void
 
@@ -41,11 +43,17 @@ struct PharmacyDetailsView: View {
             buttons
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
-                .padding(.bottom, 12)
+                .padding(.bottom, 20)
                 .background(GeometryReader { proxy in
                     Color.clear.preference(key: ButtonsHeightKey.self, value: proxy.size.height)
                 })
         }
+        // The sheet already floats above the home indicator: its safe area would add ~30 pt under the buttons; the bottom gap equals the side gap instead.
+        .ignoresSafeArea(.container, edges: .bottom)
+        .sheetGlass()
+        .animation(.smooth, value: travelTime)
+        // Another pharmacy in the same sheet: the text cross-fades and the rows and the sheet change size smoothly.
+        .animation(.smooth, value: pharmacy.id)
         .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0; reportHeight() }
         .onPreferenceChange(ButtonsHeightKey.self) { buttonsHeight = $0; reportHeight() }
         .task(id: pharmacy.id) { await loadTravelTime() }
@@ -70,7 +78,14 @@ struct PharmacyDetailsView: View {
                 }
                 if let distance {
                     if hasAddress || !pharmacy.description.isEmpty { RowDivider() }
-                    DetailRow(systemImage: "car") {
+                    DetailRow(icon: {
+                        // The arrow points to the pharmacy when the position is known.
+                        if let bearing {
+                            BearingIcon(bearing: bearing)
+                        } else {
+                            Image(systemName: "car")
+                        }
+                    }) {
                         Text(Self.travelText(distance: distance, travelTime: travelTime))
                     }
                     .accessibilityElement(children: .combine)
@@ -195,6 +210,7 @@ struct PharmacyDetailsView: View {
     }
 
     private func loadTravelTime() async {
+        travelTime = nil
         guard distance != nil else { return }
         let request = MKDirections.Request()
         request.source = .forCurrentLocation()
@@ -210,6 +226,20 @@ struct PharmacyDetailsView: View {
             return MKMapItem(location: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude), address: nil)
         }
         return MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+    }
+
+    /// Direction to the pharmacy when the user's position is known.
+    private var bearing: CLLocationDirection? {
+        userCoordinate.map { Self.bearing(from: $0, to: pharmacy.coordinate) }
+    }
+
+    /// Initial great-circle bearing from `start` to `end`, in degrees clockwise from north.
+    static func bearing(from start: CLLocationCoordinate2D, to end: CLLocationCoordinate2D) -> CLLocationDirection {
+        let lat1 = start.latitude * .pi / 180, lat2 = end.latitude * .pi / 180
+        let dLon = (end.longitude - start.longitude) * .pi / 180
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        return (atan2(y, x) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
     }
 
     /// "2.4 km away" or, once MapKit answers, "2.4 km · 7 min by car".
@@ -228,14 +258,19 @@ private let iconColumnWidth: CGFloat = 28
 private let iconSpacing: CGFloat = 14
 
 /// A row with an accent-colored icon on the left and primary text, as in Settings or Maps place cards.
-private struct DetailRow<Content: View>: View {
-    let systemImage: String
-    @ViewBuilder let content: Content
+private struct DetailRow<Icon: View, Content: View>: View {
+    let icon: Icon
+    let content: Content
+
+    init(@ViewBuilder icon: () -> Icon, @ViewBuilder content: () -> Content) {
+        self.icon = icon()
+        self.content = content()
+    }
 
     var body: some View {
         // The icon sits on the first line, however many lines the text wraps to.
         HStack(alignment: .firstTextBaseline, spacing: iconSpacing) {
-            Image(systemName: systemImage)
+            icon
                 .font(.title3)
                 .foregroundStyle(.tint)
                 .frame(width: iconColumnWidth)
@@ -251,6 +286,41 @@ private struct DetailRow<Content: View>: View {
         .padding(.vertical, 12)
         .contentShape(Rectangle())
     }
+}
+
+extension DetailRow where Icon == Image {
+    init(systemImage: String, @ViewBuilder content: () -> Content) {
+        self.init(icon: { Image(systemName: systemImage) }, content: content)
+    }
+}
+
+/// The location arrow of the map's own button, turned toward the pharmacy: with the compass it follows where the phone
+/// points, without it the arrow shows the direction on a north-up map.
+struct BearingIcon: View {
+    /// Direction to the pharmacy, degrees clockwise from north.
+    let bearing: CLLocationDirection
+
+    @State private var tracker = HeadingTracker()
+    @State private var heading: CLLocationDirection?
+    /// Unwrapped, so a turn through north takes the short way round instead of spinning.
+    @State private var angle: Double = 0
+
+    var body: some View {
+        Image(systemName: "location.north.fill")
+            .rotationEffect(.degrees(angle))
+            .onAppear {
+                tracker.onChange = { heading = $0 }
+                tracker.setRunning(true)
+                angle = target
+            }
+            .onDisappear { tracker.setRunning(false) }
+            .onChange(of: target) { _, new in
+                let delta = (new - angle + 540).truncatingRemainder(dividingBy: 360) - 180
+                withAnimation(.smooth) { angle += delta }
+            }
+    }
+
+    private var target: Double { bearing - (heading ?? 0) }
 }
 
 /// Separator that starts under the text, not under the icon.
@@ -291,17 +361,20 @@ private struct HoursRow: View {
 private struct AddressRow: View {
     let address: String
     let greekAddress: String
+    @State private var copyCount = 0
 
     var body: some View {
         Menu {
             if !address.isEmpty {
                 Button("Copy address", systemImage: "doc.on.doc") {
                     UIPasteboard.general.string = address
+                    copyCount += 1
                 }
             }
             if !greekAddress.isEmpty {
                 Button("Copy address in Greek", systemImage: "doc.on.doc") {
                     UIPasteboard.general.string = greekAddress
+                    copyCount += 1
                 }
             }
         } label: {
@@ -318,6 +391,8 @@ private struct AddressRow: View {
         }
         // Plain style keeps the text in label colors instead of the accent color.
         .buttonStyle(.plain)
+        // Copying shows nothing on screen, so it is confirmed by feel.
+        .sensoryFeedback(.success, trigger: copyCount)
         .accessibilityLabel("Address, \([address, greekAddress].filter { !$0.isEmpty }.joined(separator: ", "))")
         .accessibilityHint("Shows Copy address")
     }

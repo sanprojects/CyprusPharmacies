@@ -5,6 +5,40 @@
 
 import MapKit
 import SwiftUI
+import UIKit.UIGestureRecognizerSubclass
+
+/// Watches the taps on the map without taking part: it never recognizes, so it cannot hold up or cancel any gesture of
+/// MapKit (the double-tap zoom among them), and it reports a tap at lift-off, without MapKit's wait for a second tap.
+final class TapObserver: UIGestureRecognizer {
+    var onTouchDown: (() -> Void)?
+    var onTap: ((CGPoint) -> Void)?
+    private var start: (point: CGPoint, time: TimeInterval)?
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        // A second finger is a pinch or a two-finger tap, not a tap.
+        guard event.allTouches?.count == 1, let touch = touches.first else { start = nil; return }
+        start = (touch.location(in: view), touch.timestamp)
+        onTouchDown?()
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        guard let start, let point = touches.first?.location(in: view) else { return }
+        if hypot(point.x - start.point.x, point.y - start.point.y) > 10 { self.start = nil }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+        defer { start = nil; state = .failed }
+        guard let start, let touch = touches.first, touch.timestamp - start.time < 0.5 else { return }
+        onTap?(start.point)
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+        start = nil
+        state = .failed
+    }
+
+    override func reset() { start = nil }
+}
 
 /// `MKMapView` in SwiftUI: SwiftUI `Map` on iOS 17 has no annotation clustering.
 struct PharmacyMapView: UIViewRepresentable {
@@ -44,6 +78,18 @@ struct PharmacyMapView: UIViewRepresentable {
             recognizer.cancelsTouchesInView = false
             mapView.addGestureRecognizer(recognizer)
         }
+        // MapKit acts on a tap (selects a marker, drops the selection) only once the double-tap window (about 0.3 s) has
+        // passed. This sees the tap at lift-off and acts at once.
+        let taps = TapObserver()
+        taps.onTouchDown = { [weak mapView, weak coordinator = context.coordinator] in
+            coordinator?.touchedDown(on: mapView)
+        }
+        taps.onTap = { [weak mapView, weak coordinator = context.coordinator] point in
+            if let mapView { coordinator?.tapped(at: point, on: mapView) }
+        }
+        taps.cancelsTouchesInView = false
+        taps.delegate = context.coordinator
+        mapView.addGestureRecognizer(taps)
         return mapView
     }
 
@@ -51,6 +97,7 @@ struct PharmacyMapView: UIViewRepresentable {
         let coordinator = context.coordinator
         coordinator.parent = self
         mapView.showsUserLocation = showsUserLocation
+        coordinator.heading.setRunning(showsUserLocation)
         coordinator.sync(pharmacies, on: mapView)
         coordinator.syncSelection(selected, on: mapView)
         if let command, command.id != coordinator.appliedCommand {
@@ -68,8 +115,14 @@ struct PharmacyMapView: UIViewRepresentable {
 
         var parent: PharmacyMapView?
         var appliedCommand: UUID?
+        let heading = HeadingTracker()
+        private let cone = HeadingConeView()
         private var shownIDs: [String] = []
         private var annotations: [String: PharmacyAnnotation] = [:]
+
+        /// The day's change of pins, while it is on the screen.
+        private var flight: MarkerFlight?
+        private var isRegionChanging = false
 
         func sync(_ pharmacies: [Pharmacy], on mapView: MKMapView) {
             let ids = pharmacies.map(\.id)
@@ -77,16 +130,67 @@ struct PharmacyMapView: UIViewRepresentable {
             shownIDs = ids
             // Keep annotations of pharmacies still on the map: replacing all of them breaks MapKit clustering.
             let wanted = Dictionary(pharmacies.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            let hadPins = !annotations.isEmpty
             let gone = annotations.filter { wanted[$0.key] != $0.value.pharmacy }
-            mapView.removeAnnotations(Array(gone.values))
             gone.keys.forEach { annotations[$0] = nil }
-            let added = wanted.compactMap { id, pharmacy -> PharmacyAnnotation? in
-                guard annotations[id] == nil else { return nil }
+            let arriving = wanted.values.filter { annotations[$0.id] == nil }
+
+            // The day's change is not a swap of pins but a move: each pin that leaves flies to the nearest place where the
+            // next day has one, and only the surplus on either side shrinks away or grows in.
+            flight?.finish(cancelled: true)
+            let animated = hadPins && mapView.window != nil && !UIAccessibility.isReduceMotionEnabled && !isRegionChanging
+            let next = animated ? MarkerFlight(on: mapView) : nil
+            let pairs = animated ? Self.match(Array(gone.values), arriving) : []
+            let flying = Set(pairs.map { ObjectIdentifier($0.annotation) })
+            let landing = Set(pairs.map(\.pharmacy.id))
+
+            for (annotation, pharmacy) in pairs {
+                annotation.retarget(to: pharmacy)
+                annotations[pharmacy.id] = annotation
+                annotation.coordinate = pharmacy.coordinate
+                (mapView.view(for: annotation) as? PharmacyAnnotationView)?.refreshLabel()
+            }
+            for annotation in gone.values where !flying.contains(ObjectIdentifier(annotation)) {
+                next?.shrink(annotation)
+                mapView.removeAnnotation(annotation)
+            }
+
+            let added = arriving.filter { !landing.contains($0.id) }.map { pharmacy -> PharmacyAnnotation in
                 let annotation = PharmacyAnnotation(pharmacy)
-                annotations[id] = annotation
+                annotations[pharmacy.id] = annotation
                 return annotation
             }
             mapView.addAnnotations(added)
+            if let next {
+                flight = next
+                next.onEnd = { [weak self, weak next] in
+                    if self?.flight === next { self?.flight = nil }
+                }
+                next.fly(arriving: Set(added.map { ObjectIdentifier($0) }))
+            }
+        }
+
+        /// Pairs of the leaving annotations and the arriving pharmacies, the nearest first; the rest of the longer side is
+        /// left without a pair.
+        private static func match(_ old: [PharmacyAnnotation], _ new: [Pharmacy]) -> [(annotation: PharmacyAnnotation, pharmacy: Pharmacy)] {
+            var candidates: [(distance: Double, old: Int, new: Int)] = []
+            candidates.reserveCapacity(old.count * new.count)
+            for (i, annotation) in old.enumerated() {
+                let from = MKMapPoint(annotation.coordinate)
+                for (j, pharmacy) in new.enumerated() {
+                    candidates.append((from.distance(to: MKMapPoint(pharmacy.coordinate)), i, j))
+                }
+            }
+            candidates.sort { $0.distance < $1.distance }
+            var usedOld = Set<Int>(), usedNew = Set<Int>()
+            var pairs: [(annotation: PharmacyAnnotation, pharmacy: Pharmacy)] = []
+            for candidate in candidates where !usedOld.contains(candidate.old) && !usedNew.contains(candidate.new) {
+                usedOld.insert(candidate.old)
+                usedNew.insert(candidate.new)
+                pairs.append((old[candidate.old], new[candidate.new]))
+                if pairs.count == min(old.count, new.count) { break }
+            }
+            return pairs
         }
 
         func syncSelection(_ selected: Pharmacy?, on mapView: MKMapView) {
@@ -142,18 +246,99 @@ struct PharmacyMapView: UIViewRepresentable {
             }
         }
 
+        private var quickTapAt = Date.distantPast
+        private var quickTapSelected = false
+        private var lastTap: (time: Date, point: CGPoint)?
+        private var regionAtTouchDown: MKCoordinateRegion?
+
+        func touchedDown(on mapView: MKMapView?) { regionAtTouchDown = mapView?.region }
+
+        /// A tap on a marker selects it at lift-off (MapKit's own, late selection of it is then ignored); a tap on the bare
+        /// map takes the selection off at once.
+        func tapped(at point: CGPoint, on mapView: MKMapView) {
+            let now = Date()
+            let isSecondTap = lastTap.map { now.timeIntervalSince($0.time) < 0.4 && hypot(point.x - $0.point.x, point.y - $0.point.y) < 40 } ?? false
+            lastTap = isSecondTap ? nil : (now, point)
+
+            var hit = mapView.hitTest(point, with: nil)
+            while let view = hit, !(view is MKAnnotationView) { hit = view.superview }
+            guard let annotationView = hit as? MKAnnotationView, let annotation = annotationView.annotation else {
+                mapView.selectedAnnotations.forEach { mapView.deselectAnnotation($0, animated: true) }
+                if isSecondTap { zoomInIfMapKitDidNot(at: point, on: mapView) }
+                return
+            }
+            guard !(annotation is MKUserLocation) else { return }
+            quickTapAt = now
+            quickTapSelected = false
+            mapView.selectAnnotation(annotation, animated: true)
+        }
+
+        /// MapKit zooms in on a double tap by itself, as the finger lifts. If the map has not moved a moment later, it does not
+        /// (a gesture of ours or the system's is in the way), and the zoom is done here: half the span, the point under the
+        /// finger staying under it.
+        private func zoomInIfMapKitDidNot(at point: CGPoint, on mapView: MKMapView) {
+            guard let before = regionAtTouchDown else { return }
+            let under = mapView.convert(point, toCoordinateFrom: mapView)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak mapView] in
+                guard let mapView else { return }
+                let now = mapView.region
+                let tolerance = before.span.latitudeDelta * 0.001
+                guard abs(now.span.latitudeDelta - before.span.latitudeDelta) < tolerance,
+                      abs(now.center.latitude - before.center.latitude) < tolerance else { return }
+                let center = CLLocationCoordinate2D(
+                    latitude: under.latitude + (before.center.latitude - under.latitude) / 2,
+                    longitude: under.longitude + (before.center.longitude - under.longitude) / 2)
+                let span = MKCoordinateSpan(latitudeDelta: before.span.latitudeDelta / 2,
+                                            longitudeDelta: before.span.longitudeDelta / 2)
+                mapView.setRegion(MKCoordinateRegion(center: center, span: span), animated: true)
+            }
+        }
+
         @objc func userGesture(_ recognizer: UIGestureRecognizer) {
-            if recognizer.state == .began { parent?.onUserMove() }
+            if recognizer.state == .began {
+                flight?.finish(cancelled: true)
+                parent?.onUserMove()
+            }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                                shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
 
+        override init() {
+            super.init()
+            heading.onChange = { [weak cone] in cone?.heading = $0 }
+        }
+
         // MARK: MKMapViewDelegate
+
+        /// The cone sits under the system's dot, which is why it is a subview of it, not a view of its own.
+        func mapView(_ mapView: MKMapView, didAdd views: [MKAnnotationView]) {
+            flight?.didAdd(views)
+            guard let dot = views.first(where: { $0.annotation is MKUserLocation }) else { return }
+            // The system's dot is not drawn in the middle of its view.
+            var isSystemDot = true
+            if #available(iOS 26, *) { isSystemDot = !(dot is UserLocationView) }
+            cone.center = CGPoint(x: dot.bounds.midX - (isSystemDot ? 4 : 0), y: dot.bounds.midY + (isSystemDot ? 13 : 0))
+            cone.mapHeading = mapView.camera.heading
+            dot.insertSubview(cone, at: 0)
+        }
+
+        func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
+            isRegionChanging = true
+            // The flight moves the map by a hair itself; any other move of it ends the flight, its picture would not fit.
+            if let flight, CACurrentMediaTime() - flight.nudgedAt > 0.3 { flight.finish(cancelled: true) }
+        }
+
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) { isRegionChanging = false }
+
+        func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
+            cone.mapHeading = mapView.camera.heading
+        }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             switch annotation {
             case is MKUserLocation:
+                if #available(iOS 26, *) { return UserLocationView(annotation: annotation, reuseIdentifier: nil) }
                 return nil
             case is MKClusterAnnotation:
                 return mapView.dequeueReusableAnnotationView(
@@ -165,8 +350,16 @@ struct PharmacyMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            if Date().timeIntervalSince(quickTapAt) < 0.7 {
+                if quickTapSelected {
+                    if let annotation = view.annotation as? MKClusterAnnotation { mapView.deselectAnnotation(annotation, animated: false) }
+                    return
+                }
+                quickTapSelected = true
+            }
             if let cluster = view.annotation as? MKClusterAnnotation {
                 mapView.deselectAnnotation(cluster, animated: false)
+                UISelectionFeedbackGenerator().selectionChanged()
                 zoom(into: cluster, on: mapView)
             } else if let annotation = view.annotation as? PharmacyAnnotation {
                 // A selection made in `syncSelection` comes back here too: reporting it again would drop the list's zoom-in.

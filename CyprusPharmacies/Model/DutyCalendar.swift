@@ -8,7 +8,7 @@ import Foundation
 /// Maps an API `offset` to a duty day in Cyprus, whatever time zone the device is in.
 /// A duty runs from 08:00 to 08:00 the next morning, so until 08:00 "today" is yesterday's duty, as on the server.
 struct DutyCalendar {
-    static let maxOffset = 10
+    static let maxOffset = 30
     static let offsets = 0...maxOffset
     static let dayStartHour = 8
 
@@ -77,5 +77,56 @@ struct DutyCalendar {
         case 1: return "Tomorrow"
         default: return "In \(offset) days"
         }
+    }
+
+    // MARK: - Month grids
+
+    /// A month of the grid: Monday-first weeks of `cells`, `nil` for the blanks around the month; weeks without a day of the feed are left out.
+    struct Month: Equatable {
+        let title: String
+        let cells: [Cell?]
+    }
+
+    struct Cell: Equatable {
+        let day: Int
+        /// API offset of the day; nil when the feed does not cover it.
+        let offset: Int?
+    }
+
+    /// Weekday headings of the grid, Monday first.
+    static let weekdayTitles = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    /// The months that hold today's duty day and the days after it up to `maxOffset`.
+    func months() -> [Month] {
+        let calendar = calendar
+        let first = calendar.startOfDay(for: dutyDate(offset: 0))
+        let last = calendar.startOfDay(for: dutyDate(offset: Self.maxOffset))
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = timeZone
+        formatter.locale = Locale(identifier: "en_GB")
+        formatter.dateFormat = "LLLL yyyy"
+
+        var months: [Month] = []
+        var cursor = calendar.dateInterval(of: .month, for: first)?.start ?? first
+        while cursor <= last {
+            let days = calendar.range(of: .day, in: .month, for: cursor)?.count ?? 30
+            // Sunday is 1 in Gregorian weekdays; Monday-first puts it last.
+            let lead = (calendar.component(.weekday, from: cursor) + 5) % 7
+            var cells: [Cell?] = Array(repeating: nil, count: lead)
+            for index in 0..<days {
+                let date = calendar.date(byAdding: .day, value: index, to: cursor) ?? cursor
+                let distance = calendar.dateComponents([.day], from: first, to: date).day ?? -1
+                cells.append(Cell(day: index + 1, offset: Self.offsets.contains(distance) ? distance : nil))
+            }
+            // Only the weeks that hold a day of the feed; the rest of a month adds nothing.
+            cells += Array(repeating: nil, count: (7 - cells.count % 7) % 7)
+            let weeks = stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<$0 + 7]) }
+            let shown = weeks.filter { $0.contains { $0?.offset != nil } }.flatMap { $0 }
+            months.append(Month(title: formatter.string(from: cursor), cells: shown))
+            guard let next = calendar.date(byAdding: .month, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+        return months
     }
 }

@@ -17,6 +17,27 @@ extension View {
         }
     }
 
+    /// The sheet's own background is taken away on iOS 26+, so the map shows through and `sheetGlass` can draw the glass.
+    @ViewBuilder
+    func clearSheetBackground() -> some View {
+        if #available(iOS 26, *) { presentationBackground(.clear) } else { self }
+    }
+
+    /// The date bar's own clear glass, with no veil, over the whole sheet, to the screen's edge. Before iOS 26 the sheet keeps
+    /// its own background.
+    @ViewBuilder
+    func sheetGlass() -> some View {
+        if #available(iOS 26, *) {
+            background {
+                Color.clear
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 38, style: .continuous))
+                    .ignoresSafeArea()
+            }
+        } else {
+            self
+        }
+    }
+
     /// Glass button style on iOS 26+, bordered before; `prominent` is glass tinted with the accent color (system blue)
     /// with white semibold text, so the main actions stand out on the sheet and on the map.
     @ViewBuilder
