@@ -10,7 +10,8 @@ import Observation
 /// Instructions for the map view; a new `id` makes the map apply the command once.
 struct MapCommand: Equatable {
     enum Kind: Equatable {
-        case showIsland
+        /// Every pin of the day: the launch view, wherever the user is.
+        case showAll
         /// Center on a pharmacy so it stays visible above a sheet of `bottomInset` points;
         /// `zoomIn` brings it out of a cluster when it was picked in the list.
         case focus(CLLocationCoordinate2D, bottomInset: CGFloat, zoomIn: Bool)
@@ -55,7 +56,7 @@ final class MapViewModel {
     private(set) var isDayLoaded = false
     private(set) var isLoading = false
     private(set) var blocking: Blocking?
-    private(set) var mapCommand: MapCommand? = MapCommand(kind: .showIsland)
+    private(set) var mapCommand: MapCommand? = MapCommand(kind: .showAll)
     private(set) var showsUserLocation = false
     /// Last known position; set only once location access is granted.
     private(set) var userLocation: CLLocation?

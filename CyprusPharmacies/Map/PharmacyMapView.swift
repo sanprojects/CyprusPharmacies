@@ -42,11 +42,6 @@ final class TapObserver: UIGestureRecognizer {
 
 /// `MKMapView` in SwiftUI: SwiftUI `Map` on iOS 17 has no annotation clustering.
 struct PharmacyMapView: UIViewRepresentable {
-    static let cyprus = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 35.13, longitude: 33.43),
-        span: MKCoordinateSpan(latitudeDelta: 1.25, longitudeDelta: 2.45)
-    )
-
     let pharmacies: [Pharmacy]
     let selected: Pharmacy?
     let command: MapCommand?
@@ -69,7 +64,6 @@ struct PharmacyMapView: UIViewRepresentable {
                          forAnnotationViewWithReuseIdentifier: MKMapViewDefaultAnnotationViewReuseIdentifier)
         mapView.register(ClusterAnnotationView.self,
                          forAnnotationViewWithReuseIdentifier: MKMapViewDefaultClusterAnnotationViewReuseIdentifier)
-        mapView.setRegion(Self.cyprus, animated: false)
         mapView.accessibilityIdentifier = "pharmacyMap"
         // MapKit says nothing about who moved the map; these watch the user's gestures alongside its own.
         for recognizer in [UIPanGestureRecognizer(), UIPinchGestureRecognizer(), UIRotationGestureRecognizer()] {
@@ -119,6 +113,8 @@ struct PharmacyMapView: UIViewRepresentable {
         private let cone = HeadingConeView()
         private var shownIDs: [String] = []
         private var annotations: [String: PharmacyAnnotation] = [:]
+        /// The launch view shows every pin; it waits here for the day's pharmacies when they have not come yet.
+        private var fitsAllOnLoad = false
         /// MapKit hands over the views of a day's pins within a moment of their being added; they pop in until then.
         private var popsInUntil: CFTimeInterval = 0
 
@@ -131,6 +127,20 @@ struct PharmacyMapView: UIViewRepresentable {
             mapView.removeAnnotations(Array(annotations.values))
             annotations = Dictionary(pharmacies.map { ($0.id, PharmacyAnnotation($0)) }, uniquingKeysWith: { first, _ in first })
             mapView.addAnnotations(Array(annotations.values))
+            if fitsAllOnLoad { fitAll(on: mapView) }
+        }
+
+        /// Shows every pin, once there are any; the map keeps its launch view meanwhile.
+        private func fitAll(on mapView: MKMapView) {
+            guard !annotations.isEmpty else { return }
+            fitsAllOnLoad = false
+            let rect = annotations.values.reduce(MKMapRect.null) {
+                $0.union(MKMapRect(origin: MKMapPoint($1.coordinate), size: MKMapSize(width: 0, height: 0)))
+            }
+            let topInset = parent?.topInset ?? 0
+            mapView.setVisibleMapRect(rect,
+                                      edgePadding: UIEdgeInsets(top: topInset + 40, left: 40, bottom: 80, right: 40),
+                                      animated: true)
         }
 
         func syncSelection(_ selected: Pharmacy?, on mapView: MKMapView) {
@@ -145,9 +155,11 @@ struct PharmacyMapView: UIViewRepresentable {
 
         func apply(_ kind: MapCommand.Kind, on mapView: MKMapView) {
             let topInset = parent?.topInset ?? 0
+            fitsAllOnLoad = false
             switch kind {
-            case .showIsland:
-                mapView.setRegion(PharmacyMapView.cyprus, animated: true)
+            case .showAll:
+                fitsAllOnLoad = true
+                fitAll(on: mapView)
 
             case let .focus(coordinate, bottomInset, zoomIn):
                 let height = mapView.bounds.height
@@ -235,7 +247,10 @@ struct PharmacyMapView: UIViewRepresentable {
         }
 
         @objc func userGesture(_ recognizer: UIGestureRecognizer) {
-            if recognizer.state == .began { parent?.onUserMove() }
+            if recognizer.state == .began {
+                fitsAllOnLoad = false
+                parent?.onUserMove()
+            }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,

@@ -367,15 +367,15 @@ final class MapViewModelTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 100_000_000)
         await settle()
 
-        XCTAssertEqual(model.mapCommand?.kind, .showIsland)
+        XCTAssertEqual(model.mapCommand?.kind, .showAll)
     }
 
-    func testLaunchOutsideCyprusKeepsIsland() async {
+    func testLaunchOutsideCyprusShowsAllPins() async {
         let model = makeModel()
         model.start()
         await settle()
 
-        XCTAssertEqual(model.mapCommand?.kind, .showIsland)
+        XCTAssertEqual(model.mapCommand?.kind, .showAll)
     }
 
     func testListIsByNameWithoutLocationAndNeverAsksForAccess() async {
