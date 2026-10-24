@@ -119,23 +119,18 @@ struct PharmacyMapView: UIViewRepresentable {
         private let cone = HeadingConeView()
         private var shownIDs: [String] = []
         private var annotations: [String: PharmacyAnnotation] = [:]
+        /// MapKit hands over the views of a day's pins within a moment of their being added; they pop in until then.
+        private var popsInUntil: CFTimeInterval = 0
 
         func sync(_ pharmacies: [Pharmacy], on mapView: MKMapView) {
             let ids = pharmacies.map(\.id)
             guard ids != shownIDs else { return }
             shownIDs = ids
-            // Keep annotations of pharmacies still on the map: replacing all of them breaks MapKit clustering.
-            let wanted = Dictionary(pharmacies.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-            let gone = annotations.filter { wanted[$0.key] != $0.value.pharmacy }
-            gone.keys.forEach { annotations[$0] = nil }
-            mapView.removeAnnotations(Array(gone.values))
-
-            let added = wanted.values.filter { annotations[$0.id] == nil }.map { pharmacy -> PharmacyAnnotation in
-                let annotation = PharmacyAnnotation(pharmacy)
-                annotations[pharmacy.id] = annotation
-                return annotation
-            }
-            mapView.addAnnotations(added)
+            // The day's pins are all new: the old ones go at once, the new ones pop in.
+            if !annotations.isEmpty && !UIAccessibility.isReduceMotionEnabled { popsInUntil = CACurrentMediaTime() + 0.5 }
+            mapView.removeAnnotations(Array(annotations.values))
+            annotations = Dictionary(pharmacies.map { ($0.id, PharmacyAnnotation($0)) }, uniquingKeysWith: { first, _ in first })
+            mapView.addAnnotations(Array(annotations.values))
         }
 
         func syncSelection(_ selected: Pharmacy?, on mapView: MKMapView) {
@@ -255,6 +250,9 @@ struct PharmacyMapView: UIViewRepresentable {
 
         /// The cone sits under the system's dot, which is why it is a subview of it, not a view of its own.
         func mapView(_ mapView: MKMapView, didAdd views: [MKAnnotationView]) {
+            if CACurrentMediaTime() < popsInUntil {
+                views.filter { $0 is PharmacyAnnotationView || $0 is ClusterAnnotationView }.forEach { $0.popIn() }
+            }
             guard let dot = views.first(where: { $0.annotation is MKUserLocation }) else { return }
             // The system's dot is not drawn in the middle of its view.
             var isSystemDot = true

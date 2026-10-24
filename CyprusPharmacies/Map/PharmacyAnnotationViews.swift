@@ -254,6 +254,22 @@ final class GlassMarkerView: UIView {
     }
 }
 
+extension MKAnnotationView {
+    /// The marker grows and fades in as it is added. It is a layer animation under its own key, so what MapKit does to the
+    /// view's frame, alpha and transform stays its own.
+    func popIn() {
+        let scale = CABasicAnimation(keyPath: "transform.scale")
+        scale.fromValue = 0.4
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 0
+        let group = CAAnimationGroup()
+        group.animations = [scale, fade]
+        group.duration = 0.35
+        group.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        layer.add(group, forKey: "popIn")
+    }
+}
+
 final class PharmacyAnnotationView: MKAnnotationView {
     fileprivate static let diameter: CGFloat = 44
     private static let selectedScale: CGFloat = 1.5
