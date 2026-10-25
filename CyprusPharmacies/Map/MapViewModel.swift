@@ -36,6 +36,8 @@ protocol LocationProviding: AnyObject {
     var access: LocationService.Access { get }
     func requestAccess() async -> LocationService.Access
     func currentLocation() async -> CLLocation?
+    var onUpdate: ((CLLocation) -> Void)? { get set }
+    func setTracking(_ on: Bool)
 }
 
 extension LocationService: LocationProviding {}
@@ -97,6 +99,9 @@ final class MapViewModel {
         self.showsUserLocation = location.access == .authorized
         network.onChange = { [weak self] connected in
             MainActor.assumeIsolated { self?.networkChanged(connected: connected) }
+        }
+        location.onUpdate = { [weak self] here in
+            MainActor.assumeIsolated { self?.userLocation = here }
         }
     }
 
@@ -304,6 +309,11 @@ final class MapViewModel {
         mapCommand = MapCommand(kind: .showCity(city))
     }
 
+    /// While the app is in front, `userLocation` follows the user: distances and the list order stay current.
+    func trackUserLocation(_ on: Bool) {
+        location.setTracking(on)
+    }
+
     /// Updates `userLocation` without moving the map and without asking for access.
     func refreshUserLocation() async {
         guard location.access == .authorized else { return }
@@ -321,6 +331,7 @@ final class MapViewModel {
             return
         case .authorized:
             showsUserLocation = true
+            location.setTracking(true)
         }
         guard let here = await location.currentLocation() else { return }
         userLocation = here

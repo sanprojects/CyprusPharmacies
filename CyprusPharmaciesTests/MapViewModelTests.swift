@@ -272,6 +272,29 @@ final class MapViewModelTests: XCTestCase {
         XCTAssertEqual(api.ipCityRequests, 0, "the IP city is not needed with access")
     }
 
+    func testDistanceAndListOrderFollowTheUser() async {
+        api.results[0] = .success([pharmacy("North", lat: 35.2, lng: 33.35), pharmacy("South", lat: 35.0, lng: 33.35)])
+        location.access = .authorized
+        location.location = CLLocation(latitude: 35.19, longitude: 33.35)
+        let model = makeModel()
+        model.start()
+        await settle()
+        XCTAssertEqual(model.sortedPharmacies.map(\.name), ["North", "South"])
+        let before = model.distance(to: model.pharmacies.first { $0.name == "North" }!)
+
+        location.onUpdate?(CLLocation(latitude: 35.01, longitude: 33.35))
+        XCTAssertEqual(model.sortedPharmacies.map(\.name), ["South", "North"])
+        XCTAssertNotEqual(model.distance(to: model.pharmacies.first { $0.name == "North" }!), before)
+    }
+
+    func testLocateUserStartsTracking() async {
+        location.accessResult = .authorized
+        location.location = CLLocation(latitude: 35.16, longitude: 33.35)
+        let model = makeModel()
+        await model.locateUser()
+        XCTAssertTrue(location.isTracking)
+    }
+
     // MARK: - Roster
 
     func testRosterFillsEveryDaySoAnotherDayNeedsNoRequest() async {
@@ -479,4 +502,8 @@ private final class FakeLocation: LocationProviding {
     }
 
     func currentLocation() async -> CLLocation? { location }
+
+    var onUpdate: ((CLLocation) -> Void)?
+    private(set) var isTracking = false
+    func setTracking(_ on: Bool) { isTracking = on }
 }

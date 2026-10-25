@@ -140,8 +140,10 @@ struct MapScreen: View {
             guard !hasStarted else { return }
             hasStarted = true
             model.start()
+            model.trackUserLocation(scenePhase == .active)
         }
         .onChange(of: scenePhase) { _, phase in
+            model.trackUserLocation(phase == .active)
             if phase == .active && hasStarted { model.refreshIfNeeded() }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in

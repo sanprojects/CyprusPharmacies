@@ -21,11 +21,14 @@ final class LocationService: NSObject {
     @ObservationIgnored private let manager = CLLocationManager()
     @ObservationIgnored private var pending: [CheckedContinuation<CLLocation?, Never>] = []
     @ObservationIgnored private var authorizationWaiters: [CheckedContinuation<Access, Never>] = []
+    /// Called with every new fix, one-shot or from `setTracking`.
+    @ObservationIgnored var onUpdate: ((CLLocation) -> Void)?
 
     override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.distanceFilter = 25
         access = Self.access(manager.authorizationStatus)
     }
 
@@ -50,8 +53,20 @@ final class LocationService: NSObject {
         }
     }
 
+    /// Follows the user while the app is in front; a fix arrives after moving 25 m.
+    func setTracking(_ on: Bool) {
+        if on && access == .authorized {
+            manager.startUpdatingLocation()
+        } else {
+            manager.stopUpdatingLocation()
+        }
+    }
+
     private func finish(_ location: CLLocation?) {
-        if let location { self.location = location }
+        if let location {
+            self.location = location
+            onUpdate?(location)
+        }
         let waiting = pending
         pending.removeAll()
         waiting.forEach { $0.resume(returning: location ?? self.location) }
