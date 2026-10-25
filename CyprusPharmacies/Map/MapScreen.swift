@@ -23,6 +23,7 @@ struct MapScreen: View {
 
     @Bindable var model: MapViewModel
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
     @State private var topBarBottom: CGFloat = 0
@@ -153,6 +154,7 @@ struct MapScreen: View {
                 if hasStarted { model.refreshIfNeeded() }
             }
         }
+        .environment(\.sheetsFloat, sizeClass == .regular)
     }
 
     private var map: some View {

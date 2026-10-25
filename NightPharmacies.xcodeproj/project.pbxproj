@@ -29,6 +29,7 @@
 		855863975658D92E21958061 /* CyprusPharmaciesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0847FD2130F82E363815F823 /* CyprusPharmaciesApp.swift */; };
 		98287122AB47332FB9F8814A /* ModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C412E056153B579ACDFEDE7C /* ModelTests.swift */; };
 		A2E0E9BDDAAC161CFB9A1CE1 /* PharmacyListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E10F8BD10771093EDABE4D9 /* PharmacyListView.swift */; };
+		B16F7EF964ED24A7C0756453 /* AppStoreScreenshotsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7CA1D482A3DD15770E0B14 /* AppStoreScreenshotsTests.swift */; };
 		BAC11BD272103C31181F87BC /* today.json in Resources */ = {isa = PBXBuildFile; fileRef = 61A3A55FE9D17B15F93BE624 /* today.json */; };
 		CB2C280DCFF8BEF0B556D10A /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 429FEBD84FE1B3BC270C6CAC /* Glass.swift */; };
 		CE3AEC175C55E0520EDA8982 /* MapViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97B1D0E2B9281B8E171A417 /* MapViewModelTests.swift */; };
@@ -80,6 +81,7 @@
 		6E5E127CFD7C9B5B950927F9 /* PharmacyAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PharmacyAPI.swift; sourceTree = "<group>"; };
 		85E0DFBE0E0C48CBE954F733 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		8CAAC7A1A1C25B0A4253C071 /* Pharmacy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pharmacy.swift; sourceTree = "<group>"; };
+		8E7CA1D482A3DD15770E0B14 /* AppStoreScreenshotsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreScreenshotsTests.swift; sourceTree = "<group>"; };
 		9600FDE878D6FCB8A87E5F77 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		97F07FAED6FB2C4FF5C39225 /* NightPharmaciesTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NightPharmaciesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9ECD250AF61E4DA8E91EDB85 /* NightPharmacies.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NightPharmacies.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -167,6 +169,7 @@
 		21CD413CF99472794FC5493B /* CyprusPharmaciesUITests */ = {
 			isa = PBXGroup;
 			children = (
+				8E7CA1D482A3DD15770E0B14 /* AppStoreScreenshotsTests.swift */,
 				6893296F639BCD9FC9D9A4BA /* LaunchPerformanceTests.swift */,
 				F4F7DB036884F7DD23AD4208 /* NightPharmaciesUITests.swift */,
 			);
@@ -420,6 +423,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B16F7EF964ED24A7C0756453 /* AppStoreScreenshotsTests.swift in Sources */,
 				6196546C96AFC02CB903C29F /* LaunchPerformanceTests.swift in Sources */,
 				0A2CD9BF549088DCEED495BC /* NightPharmaciesUITests.swift in Sources */,
 			);
@@ -566,6 +570,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CyprusPharmacies/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Night Pharmacy";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "To show the nearest duty pharmacy and build a route to the chosen pharmacy";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -625,6 +630,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CyprusPharmacies/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Night Pharmacy";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "To show the nearest duty pharmacy and build a route to the chosen pharmacy";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
