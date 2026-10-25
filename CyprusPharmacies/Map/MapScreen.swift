@@ -18,6 +18,8 @@ struct MapScreen: View {
     /// Map chrome stops growing here, so the date bar and buttons leave room for the map.
     private static let chromeTextLimit = DynamicTypeSize.xxxLarge
     private static let maxSheetFraction: CGFloat = 0.75
+    /// On a wide iPad window the date bar stays phone-sized, centered, clear of the window controls.
+    private static let topBarMaxWidth: CGFloat = 440
 
     @Bindable var model: MapViewModel
 
@@ -48,6 +50,7 @@ struct MapScreen: View {
                 }
 
                 topBar
+                    .frame(maxWidth: Self.topBarMaxWidth)
                     .padding(.horizontal, 12)
                     .background(GeometryReader { proxy in
                         Color.clear.preference(key: TopBarBottomKey.self, value: proxy.frame(in: .global).maxY)
