@@ -53,9 +53,8 @@ Source: `curl -s "https://itunes.apple.com/lookup?id=1637452137&country=cy"` and
 |---|---|---|
 | `iphone-6.9-pro-max` | 1320x2868 | iPhone 6.9" (required) |
 | `ipad-13` | 2064x2752 | iPad 13" (required, the app is universal) |
-| `iphone-17-1206x2622` | 1206x2622 | iPhone 17 native; **not an accepted App Store size** |
 
-Regenerate: boot the simulator, `xcrun simctl status_bar <udid> override --time 9:41 …`, then
+Taken on the real feed (needs the network; the pharmacies and the day change). Native sizes: iPhone 17 Pro Max and iPad Pro 13-inch (M5) simulators. Regenerate: boot the simulator, `xcrun simctl status_bar <udid> override --time 9:41 …`, then
 `TEST_RUNNER_SCREENSHOT_DIR=<dir> xcodebuild test -project NightPharmacies.xcodeproj -scheme NightPharmacies -destination "id=<udid>" -only-testing:NightPharmaciesUITests/AppStoreScreenshotsTests`
 
 ## Upload
