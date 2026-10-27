@@ -66,6 +66,39 @@ struct DutyCalendar {
         }
     }
 
+    // MARK: - Day strip
+
+    /// A day of the strip under the date bar.
+    struct StripDay: Equatable, Identifiable {
+        let offset: Int
+        /// The weekday, or the month on the first day of one, as on Apple's Home.
+        let title: String
+        let day: Int
+        /// "Tuesday 27 October", for VoiceOver.
+        let label: String
+
+        var id: Int { offset }
+        /// Days around the feed only fill the strip; they cannot be chosen.
+        var isInFeed: Bool { DutyCalendar.offsets.contains(offset) }
+    }
+
+    /// Days shown past each end of the feed, so the chosen day can stand in the middle of a full strip.
+    static let stripPadding = 3
+
+    /// Every day the feed covers, today first, with `stripPadding` days of filler on each side.
+    func stripDays() -> [StripDay] {
+        let calendar = calendar
+        let weekday = formatter("EEE"), month = formatter("MMM"), full = formatter("EEEE d MMMM")
+        return ((Self.offsets.lowerBound - Self.stripPadding)...(Self.offsets.upperBound + Self.stripPadding)).map { offset in
+            let date = dutyDate(offset: offset)
+            let day = calendar.component(.day, from: date)
+            return StripDay(offset: offset,
+                            title: day == 1 ? month.string(from: date) : weekday.string(from: date),
+                            day: day,
+                            label: full.string(from: date))
+        }
+    }
+
     // MARK: - Month grids
 
     /// A month of the grid: Monday-first weeks of `cells`, `nil` for the blanks around the month; weeks without a day of the feed are left out.

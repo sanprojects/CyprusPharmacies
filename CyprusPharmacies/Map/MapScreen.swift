@@ -34,8 +34,6 @@ struct MapScreen: View {
     /// Tapped in the list: selected once the list is gone.
     @State private var pharmacyAfterSheet: Pharmacy?
     @State private var hasStarted = false
-    /// When a finger last moved sideways over the date bar: the touch that ends such a swipe is not a tap on a button.
-    @State private var swipedAt = Date.distantPast
 
     var body: some View {
         GeometryReader { root in
@@ -169,80 +167,31 @@ struct MapScreen: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             dayButton("Previous day", systemImage: "chevron.left", enabled: model.canGoToPreviousDay) {
                 model.previousDay()
             }
-            dayMenu
+            DayStripView(days: stripDays, selectedOffset: model.offset, relativeTitle: model.relativeDayTitle,
+                         isLoading: model.isLoading, onSelect: { model.show(offset: $0) },
+                         onCalendar: { show(.calendar) }, onToday: { model.showToday() })
             dayButton("Next day", systemImage: "chevron.right", enabled: model.canGoToNextDay) {
                 model.nextDay()
             }
         }
-        .padding(6)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 6)
         .glassBackground(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .dynamicTypeSize(...Self.chromeTextLimit)
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        // A swipe along the bar turns the day, as the arrows do: left for the next day, right for the previous one.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 24)
-            .onChanged { _ in swipedAt = Date() }
-            .onEnded { value in
-                swipedAt = Date()
-                let across = value.translation.width, along = value.translation.height
-                guard abs(across) > 50, abs(across) > abs(along) * 1.5 else { return }
-                if across < 0 { model.nextDay() } else { model.previousDay() }
-            }
-        )
-        .animation(.smooth, value: model.offset)
-        .animation(.smooth, value: model.isLoading)
-        .sensoryFeedback(.selection, trigger: model.offset)
     }
 
-    /// Tapping the date opens a calendar of the days the feed covers, with the days that have pharmacies marked; a double tap goes back to today.
-    private var dayMenu: some View {
-        VStack(spacing: 2) {
-            Text(model.dateTitle)
-                .font(.headline)
-                .monospacedDigit()
-                .contentTransition(.numericText())
-            HStack(spacing: 6) {
-                Text(model.relativeDayTitle)
-                    .contentTransition(.numericText())
-                if model.isLoading {
-                    ProgressView().controlSize(.mini).transition(.opacity)
-                }
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-        }
-        .foregroundStyle(.primary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.8)
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .contentShape(Rectangle())
-        // The double tap is declared first, so the single tap waits for it to fail.
-        .onTapGesture(count: 2) {
-            guard !isSwiping else { return }
-            model.showToday()
-        }
-        .onTapGesture {
-            guard !isSwiping else { return }
-            show(.calendar)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits([.isHeader, .isButton])
-        .accessibilityHint("Opens the calendar")
-        .accessibilityAction(named: "Today") { model.showToday() }
-        .accessibilityIdentifier("dayMenu")
-    }
-
-    private var isSwiping: Bool { Date().timeIntervalSince(swipedAt) < 0.4 }
+    private var stripDays: [DutyCalendar.StripDay] { model.calendar.stripDays() }
 
     private func dayButton(_ title: String, systemImage: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button { if !isSwiping { action() } } label: {
+        Button(action: action) {
             Image(systemName: systemImage)
                 .font(.title3.weight(.semibold))
-                .frame(width: 44, height: 44)
+                .frame(width: 40, height: 52)
         }
         .disabled(!enabled)
         .accessibilityLabel(title)

@@ -19,6 +19,7 @@
 		4B94C9724908310C17F724D0 /* DutyHoursTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BFF34528875535B28A0B53E /* DutyHoursTests.swift */; };
 		4C2D9DC24D766C2B0DEA8D30 /* DutyCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6E96D10FAB7CC74A27C622 /* DutyCalendar.swift */; };
 		4DFA52EBCA7AABEC6C266915 /* DutyHours.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B274A08E63F2A011C63C5A /* DutyHours.swift */; };
+		4E12A14B9A15C61936A28270 /* DayStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BB7629CF5B3B9ABE651DC41 /* DayStripView.swift */; };
 		566D2447C917E11FA07C39A7 /* PharmacyDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEDC7B6D15FDA9AA75EAD137 /* PharmacyDetailsView.swift */; };
 		5CB8FEC729F59B6348A00B54 /* PharmacyCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C81F6BDA0A986C2A8323481 /* PharmacyCache.swift */; };
 		6196546C96AFC02CB903C29F /* LaunchPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6893296F639BCD9FC9D9A4BA /* LaunchPerformanceTests.swift */; };
@@ -66,6 +67,7 @@
 		290CD946DD4779291A03CF00 /* PharmacyAnnotationViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PharmacyAnnotationViews.swift; sourceTree = "<group>"; };
 		2CC674FB449C47589D718F57 /* DayCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayCalendarView.swift; sourceTree = "<group>"; };
 		33CECCA1AF664582A9B3F348 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
+		3BB7629CF5B3B9ABE651DC41 /* DayStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayStripView.swift; sourceTree = "<group>"; };
 		429FEBD84FE1B3BC270C6CAC /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
 		46ED3A7CA8B91D480585DFE3 /* ErrorViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorViews.swift; sourceTree = "<group>"; };
 		4805EDEC6908E14D0A434449 /* MapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapViewModel.swift; sourceTree = "<group>"; };
@@ -227,6 +229,7 @@
 			isa = PBXGroup;
 			children = (
 				2CC674FB449C47589D718F57 /* DayCalendarView.swift */,
+				3BB7629CF5B3B9ABE651DC41 /* DayStripView.swift */,
 			);
 			path = Calendar;
 			sourceTree = "<group>";
@@ -438,6 +441,7 @@
 			files = (
 				855863975658D92E21958061 /* CyprusPharmaciesApp.swift in Sources */,
 				E3B6605ED29E58F53161AFC6 /* DayCalendarView.swift in Sources */,
+				4E12A14B9A15C61936A28270 /* DayStripView.swift in Sources */,
 				4C2D9DC24D766C2B0DEA8D30 /* DutyCalendar.swift in Sources */,
 				4DFA52EBCA7AABEC6C266915 /* DutyHours.swift in Sources */,
 				F2023567B2ACC9BF0925DE17 /* ErrorReporter.swift in Sources */,

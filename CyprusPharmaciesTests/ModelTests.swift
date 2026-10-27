@@ -92,6 +92,17 @@ final class DutyCalendarTests: XCTestCase {
         XCTAssertEqual(at.nextDayStart, Date(timeIntervalSince1970: 1_792_731_600 + 24 * 60 * 60))
     }
 
+    func testStripDaysCoverTheFeedAndNameTheMonthOnItsFirstDay() {
+        let days = DutyCalendar(now: { Date(timeIntervalSince1970: 1_792_746_000) }).stripDays() // 2026-10-23 12:00 Nicosia
+        let padding = DutyCalendar.stripPadding
+        XCTAssertEqual(days.count, DutyCalendar.maxOffset + 1 + 2 * padding)
+        XCTAssertEqual(days.filter(\.isInFeed).map(\.offset), Array(DutyCalendar.offsets))
+        XCTAssertEqual(days.first, DutyCalendar.StripDay(offset: -padding, title: "Tue", day: 20, label: "Tuesday 20 October"))
+        XCTAssertEqual(days[padding], DutyCalendar.StripDay(offset: 0, title: "Fri", day: 23, label: "Friday 23 October"))
+        XCTAssertEqual(days[padding + 9], DutyCalendar.StripDay(offset: 9, title: "Nov", day: 1, label: "Sunday 1 November"))
+        XCTAssertEqual(days.last?.offset, DutyCalendar.maxOffset + padding)
+    }
+
     func testTitles() {
         let calendar = DutyCalendar(now: { self.lateEvening })
         XCTAssertEqual(calendar.displayTitle(forDayKey: "2026-10-26"), "Mon 26 Oct 2026")
