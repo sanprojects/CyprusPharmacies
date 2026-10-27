@@ -4,6 +4,7 @@
 //
 
 import CoreLocation
+import MapKit
 import XCTest
 @testable import NightPharmacies
 
@@ -24,9 +25,9 @@ final class MapViewModelTests: XCTestCase {
         location = FakeLocation()
     }
 
-    private func makeModel() -> MapViewModel {
+    private func makeModel(regionStore: MapRegionStoring? = nil) -> MapViewModel {
         MapViewModel(api: api, cache: cache, network: network, reporter: reporter,
-                     location: location, calendar: calendar)
+                     location: location, calendar: calendar, regionStore: regionStore)
     }
 
     private func pharmacy(_ name: String, day: String = "2026-10-23", lat: Double = 35, lng: Double = 33) -> Pharmacy {
@@ -393,6 +394,107 @@ final class MapViewModelTests: XCTestCase {
         XCTAssertEqual(model.mapCommand?.kind, .showAll)
     }
 
+    // MARK: - Saved map region
+
+    private let savedRegion = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 35.1, longitude: 33.3),
+                                                 span: MKCoordinateSpan(latitudeDelta: 0.2, longitudeDelta: 0.1))
+
+    func testLaunchRestoresSavedRegionAndKeepsUserAreaAndCityOut() async {
+        let store = MemoryRegionStore(saved: SavedMapRegion(savedRegion))
+        api.ipCityResult = CLLocationCoordinate2D(latitude: 34.68, longitude: 33.04)
+        location.access = .authorized
+        location.location = CLLocation(latitude: 34.9, longitude: 33.0)
+        let model = makeModel(regionStore: store)
+        let launch = model.mapCommand?.id
+        model.start()
+        await settle()
+
+        XCTAssertEqual(model.mapCommand?.kind, .restore(savedRegion))
+        XCTAssertEqual(model.mapCommand?.id, launch)
+        XCTAssertEqual(api.ipCityRequests, 0)
+        XCTAssertNotNil(model.userLocation, "distances still follow the user")
+    }
+
+    func testDamagedSavedRegionFallsBackToAllPins() {
+        let store = MemoryRegionStore(saved: SavedMapRegion(
+            MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 35, longitude: 33),
+                               span: MKCoordinateSpan(latitudeDelta: 0, longitudeDelta: 0))))
+        XCTAssertEqual(makeModel(regionStore: store).mapCommand?.kind, .showAll)
+    }
+
+    func testRegionIsSavedOnlyAfterTheMapWasMovedOnPurpose() {
+        let store = MemoryRegionStore()
+        let model = makeModel(regionStore: store)
+        model.mapRegionDidChange(savedRegion)
+        XCTAssertNil(store.saved, "the launch view is not the user's choice")
+
+        model.userDidMoveMap()
+        model.mapRegionDidChange(savedRegion)
+        XCTAssertEqual(store.saved, SavedMapRegion(savedRegion))
+    }
+
+    func testLocateAndFocusMakeTheRegionWorthSaving() async {
+        let store = MemoryRegionStore()
+        location.accessResult = .authorized
+        location.location = CLLocation(latitude: 34.9, longitude: 33.0)
+        let model = makeModel(regionStore: store)
+        await model.locateUser()
+        model.mapRegionDidChange(savedRegion)
+        XCTAssertNotNil(store.saved)
+
+        let other = MemoryRegionStore()
+        let second = makeModel(regionStore: other)
+        second.focus(on: pharmacy("A"), bottomInset: 200)
+        second.mapRegionDidChange(savedRegion)
+        XCTAssertNotNil(other.saved)
+    }
+
+    func testWidenedKeepsRegionWhenAPharmacyIsInside() {
+        let inside = CLLocationCoordinate2D(latitude: 35.15, longitude: 33.3)
+        XCTAssertNil(savedRegion.widened(toInclude: [inside, CLLocationCoordinate2D(latitude: 40, longitude: 40)]))
+        XCTAssertNil(savedRegion.widened(toInclude: []))
+    }
+
+    func testWidenedZoomsOutJustEnoughForTheNearestPharmacy() throws {
+        // 0.3° north of the center, the span's half is 0.1°: three times too far; the east one is 5 times too far.
+        let north = CLLocationCoordinate2D(latitude: 35.4, longitude: 33.3)
+        let east = CLLocationCoordinate2D(latitude: 35.1, longitude: 33.55)
+        let wider = try XCTUnwrap(savedRegion.widened(toInclude: [east, north]))
+
+        XCTAssertEqual(wider.center, savedRegion.center)
+        XCTAssertEqual(wider.span.latitudeDelta, 0.2 * 3 * 1.25, accuracy: 1e-9)
+        XCTAssertEqual(wider.span.longitudeDelta, 0.1 * 3 * 1.25, accuracy: 1e-9)
+        XCTAssertNil(wider.widened(toInclude: [north]), "the pharmacy is in now")
+    }
+
+    func testWidenedKeepsThePharmacyOutFromUnderTheDateBar() throws {
+        // 0.09° north: inside the span (half is 0.1°), but under a bar that covers the top fifth of the height.
+        let underBar = CLLocationCoordinate2D(latitude: 35.19, longitude: 33.3)
+        XCTAssertNil(savedRegion.widened(toInclude: [underBar]))
+        let wider = try XCTUnwrap(savedRegion.widened(toInclude: [underBar], topInset: 0.2))
+        // 0.45 of the span north, 0.3 of it usable, 1.25 of room: 0.45 / 0.3 * 1.25 times.
+        XCTAssertEqual(wider.span.latitudeDelta, 0.2 * 0.45 / 0.3 * 1.25, accuracy: 1e-9)
+        XCTAssertNil(wider.widened(toInclude: [underBar], topInset: 0.2))
+    }
+
+    func testWidenedStaysWithinTheGlobe() throws {
+        let far = CLLocationCoordinate2D(latitude: -80, longitude: 170)
+        let wider = try XCTUnwrap(savedRegion.widened(toInclude: [far]))
+        XCTAssertLessThanOrEqual(wider.span.latitudeDelta, 180)
+        XCTAssertLessThanOrEqual(wider.span.longitudeDelta, 360)
+    }
+
+    func testSavedRegionSurvivesUserDefaults() throws {
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "SavedMapRegionTests"))
+        suite.removePersistentDomain(forName: "SavedMapRegionTests")
+        let store = UserDefaultsMapRegionStore(defaults: suite)
+        XCTAssertNil(store.load())
+        store.save(SavedMapRegion(savedRegion))
+        XCTAssertEqual(store.load()?.region, savedRegion)
+        suite.set(Data("nonsense".utf8), forKey: UserDefaultsMapRegionStore.key)
+        XCTAssertNil(store.load())
+    }
+
     func testLaunchOutsideCyprusShowsAllPins() async {
         let model = makeModel()
         model.start()
@@ -488,6 +590,13 @@ private final class SpyReporter: LoadErrorReporting {
 }
 
 @MainActor
+private final class MemoryRegionStore: MapRegionStoring {
+    var saved: SavedMapRegion?
+    init(saved: SavedMapRegion? = nil) { self.saved = saved }
+    func load() -> SavedMapRegion? { saved }
+    func save(_ region: SavedMapRegion) { saved = region }
+}
+
 private final class FakeLocation: LocationProviding {
     var access: LocationService.Access = .notDetermined
     var accessResult: LocationService.Access = .notDetermined

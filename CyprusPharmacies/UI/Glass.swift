@@ -5,6 +5,14 @@
 
 import SwiftUI
 
+enum Margin {
+    /// The gap between the screen's edge and a floating element: iOS 26 floats sheets 8 pt off the edge
+    /// (measured on iPhone SE), so the map's bar and buttons use the same; earlier systems have no such gap.
+    static var screen: CGFloat { if #available(iOS 26, *) { 8 } else { 16 } }
+    /// The gap between a sheet's edge and its content.
+    static let content: CGFloat = 16
+}
+
 extension View {
     /// Liquid Glass behind the view on iOS 26+, a material with a shadow before.
     @ViewBuilder
@@ -15,18 +23,6 @@ extension View {
             background(.regularMaterial, in: shape)
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
         }
-    }
-
-    /// The sheet's own background is taken away on iOS 26+, so the map shows through and `sheetGlass` can draw the glass.
-    /// Not on a regular-width screen: the sheet floats there as a card with its own glass and corners.
-    func clearSheetBackground() -> some View {
-        modifier(ClearSheetBackground())
-    }
-
-    /// The date bar's own clear glass, with no veil, over the whole sheet, to the screen's edge. Before iOS 26 the sheet keeps
-    /// its own background, and so does a floating card on a regular-width screen, whose corners are the system's.
-    func sheetGlass() -> some View {
-        modifier(SheetGlass())
     }
 
     /// Glass button style on iOS 26+, bordered before; `prominent` is glass tinted with the accent color (system blue)
@@ -77,39 +73,5 @@ extension Color {
                 ? UIColor(white: 1, alpha: 0.08) : UIColor(white: 1, alpha: 0.55) })
         }
         return Color(.secondarySystemGroupedBackground)
-    }
-}
-
-extension EnvironmentValues {
-    /// Set by the screen that presents the sheets: a regular-width window floats them as cards with the system's own glass
-    /// and corners. The size class read inside a sheet is not the window's, so a sheet cannot tell this for itself.
-    @Entry var sheetsFloat = false
-}
-
-private struct ClearSheetBackground: ViewModifier {
-    @Environment(\.sheetsFloat) private var floats
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *), !floats {
-            content.presentationBackground(.clear)
-        } else {
-            content
-        }
-    }
-}
-
-private struct SheetGlass: ViewModifier {
-    @Environment(\.sheetsFloat) private var floats
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *), !floats {
-            content.background {
-                Color.clear
-                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 38, style: .continuous))
-                    .ignoresSafeArea()
-            }
-        } else {
-            content
-        }
     }
 }

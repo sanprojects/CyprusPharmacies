@@ -17,6 +17,7 @@ struct CyprusPharmaciesApp: App {
         var fetcher: PharmacyFetching = api
         var forcedOffline = false
         var cache = PharmacyCache()
+        var regionStore: MapRegionStoring? = UserDefaultsMapRegionStore()
         #if DEBUG
         // Launch arguments for manual checks, e.g. `-simulateOffline YES`, `-apiBaseURL https://…/missing.php`, `-resetCache YES`.
         let defaults = UserDefaults.standard
@@ -28,9 +29,13 @@ struct CyprusPharmaciesApp: App {
         if let fixture = ProcessInfo.processInfo.environment["PHARMACIES_FIXTURE"] {
             fetcher = FixturePharmacies(json: Data(fixture.utf8))
             cache = PharmacyCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent("UITestCache"))
+            regionStore = nil
         }
         forcedOffline = defaults.bool(forKey: "simulateOffline")
-        if defaults.bool(forKey: "resetCache") { cache.removeAll() }
+        if defaults.bool(forKey: "resetCache") {
+            cache.removeAll()
+            defaults.removeObject(forKey: UserDefaultsMapRegionStore.key)
+        }
         #endif
 
         _model = State(initialValue: MapViewModel(
@@ -38,7 +43,8 @@ struct CyprusPharmaciesApp: App {
             cache: cache,
             network: NetworkMonitor(forcedOffline: forcedOffline),
             reporter: ErrorReporter.shared,
-            location: LocationService()
+            location: LocationService(),
+            regionStore: regionStore
         ))
     }
 

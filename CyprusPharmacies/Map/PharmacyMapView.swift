@@ -51,6 +51,8 @@ struct PharmacyMapView: UIViewRepresentable {
     let onSelect: (Pharmacy?) -> Void
     /// The user started to pan, pinch or double-tap the map.
     let onUserMove: () -> Void
+    /// The map came to rest in this region.
+    let onRegionChange: (MKCoordinateRegion) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -115,6 +117,8 @@ struct PharmacyMapView: UIViewRepresentable {
         private var annotations: [String: PharmacyAnnotation] = [:]
         /// The launch view shows every pin; it waits here for the day's pharmacies when they have not come yet.
         private var fitsAllOnLoad = false
+        /// The restored view shows a pharmacy; it waits here for the day's pharmacies when they have not come yet.
+        private var widensOnLoad = false
         /// MapKit hands over the views of a day's pins within a moment of their being added; they pop in until then.
         private var popsInUntil: CFTimeInterval = 0
 
@@ -128,6 +132,18 @@ struct PharmacyMapView: UIViewRepresentable {
             annotations = Dictionary(pharmacies.map { ($0.id, PharmacyAnnotation($0)) }, uniquingKeysWith: { first, _ in first })
             mapView.addAnnotations(Array(annotations.values))
             if fitsAllOnLoad { fitAll(on: mapView) }
+            if widensOnLoad { widenToPharmacy(on: mapView) }
+        }
+
+        /// Zooms out, with the center kept, just far enough for a pin to be in view; waits for the pins when there are none.
+        private func widenToPharmacy(on mapView: MKMapView) {
+            guard !annotations.isEmpty else { return }
+            widensOnLoad = false
+            // The date bar and the gap below it, as a share of the map's height.
+            let barShare = mapView.bounds.height > 0 ? ((parent?.topInset ?? 0) + 10) / mapView.bounds.height : 0
+            if let wider = mapView.region.widened(toInclude: annotations.values.map(\.coordinate), topInset: barShare) {
+                mapView.setRegion(wider, animated: true)
+            }
         }
 
         /// Shows every pin, once there are any; the map keeps its launch view meanwhile.
@@ -156,6 +172,7 @@ struct PharmacyMapView: UIViewRepresentable {
         func apply(_ kind: MapCommand.Kind, on mapView: MKMapView) {
             let topInset = parent?.topInset ?? 0
             fitsAllOnLoad = false
+            widensOnLoad = false
             switch kind {
             case .showAll:
                 fitsAllOnLoad = true
@@ -177,6 +194,11 @@ struct PharmacyMapView: UIViewRepresentable {
                     longitude: coordinate.longitude
                 )
                 mapView.setRegion(MKCoordinateRegion(center: center, span: span), animated: true)
+
+            case let .restore(region):
+                mapView.setRegion(region, animated: false)
+                widensOnLoad = true
+                widenToPharmacy(on: mapView)
 
             case let .showCity(center):
                 let span = MKCoordinateSpan(latitudeDelta: Self.citySpan, longitudeDelta: Self.citySpan)
@@ -249,6 +271,7 @@ struct PharmacyMapView: UIViewRepresentable {
         @objc func userGesture(_ recognizer: UIGestureRecognizer) {
             if recognizer.state == .began {
                 fitsAllOnLoad = false
+                widensOnLoad = false
                 parent?.onUserMove()
             }
         }
@@ -275,6 +298,10 @@ struct PharmacyMapView: UIViewRepresentable {
             cone.center = CGPoint(x: dot.bounds.midX - (isSystemDot ? 4 : 0), y: dot.bounds.midY + (isSystemDot ? 13 : 0))
             cone.mapHeading = mapView.camera.heading
             dot.insertSubview(cone, at: 0)
+        }
+
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            parent?.onRegionChange(mapView.region)
         }
 
         func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {

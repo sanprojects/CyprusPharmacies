@@ -31,6 +31,7 @@
 		A2E0E9BDDAAC161CFB9A1CE1 /* PharmacyListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E10F8BD10771093EDABE4D9 /* PharmacyListView.swift */; };
 		B16F7EF964ED24A7C0756453 /* AppStoreScreenshotsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7CA1D482A3DD15770E0B14 /* AppStoreScreenshotsTests.swift */; };
 		BAC11BD272103C31181F87BC /* today.json in Resources */ = {isa = PBXBuildFile; fileRef = 61A3A55FE9D17B15F93BE624 /* today.json */; };
+		BB54FA9F9F59F95B55376164 /* SavedMapRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F5371D084C155A4C60DF9E2 /* SavedMapRegion.swift */; };
 		CB2C280DCFF8BEF0B556D10A /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 429FEBD84FE1B3BC270C6CAC /* Glass.swift */; };
 		CE3AEC175C55E0520EDA8982 /* MapViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97B1D0E2B9281B8E171A417 /* MapViewModelTests.swift */; };
 		D6D76C0793BC23E09D0EA45E /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 285973F411E0E7A8B8AB56A7 /* AppIcon.icon */; };
@@ -79,6 +80,7 @@
 		6990D87E13DE39CE6EE6DD59 /* Navigator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Navigator.swift; sourceTree = "<group>"; };
 		6C81F6BDA0A986C2A8323481 /* PharmacyCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PharmacyCache.swift; sourceTree = "<group>"; };
 		6E5E127CFD7C9B5B950927F9 /* PharmacyAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PharmacyAPI.swift; sourceTree = "<group>"; };
+		7F5371D084C155A4C60DF9E2 /* SavedMapRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedMapRegion.swift; sourceTree = "<group>"; };
 		85E0DFBE0E0C48CBE954F733 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		8CAAC7A1A1C25B0A4253C071 /* Pharmacy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pharmacy.swift; sourceTree = "<group>"; };
 		8E7CA1D482A3DD15770E0B14 /* AppStoreScreenshotsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreScreenshotsTests.swift; sourceTree = "<group>"; };
@@ -237,6 +239,7 @@
 				4805EDEC6908E14D0A434449 /* MapViewModel.swift */,
 				290CD946DD4779291A03CF00 /* PharmacyAnnotationViews.swift */,
 				BF30D32F5EADF38DCBDB7B64 /* PharmacyMapView.swift */,
+				7F5371D084C155A4C60DF9E2 /* SavedMapRegion.swift */,
 			);
 			path = Map;
 			sourceTree = "<group>";
@@ -454,6 +457,7 @@
 				566D2447C917E11FA07C39A7 /* PharmacyDetailsView.swift in Sources */,
 				A2E0E9BDDAAC161CFB9A1CE1 /* PharmacyListView.swift in Sources */,
 				0BF312B73BC571D3DDEC95E8 /* PharmacyMapView.swift in Sources */,
+				BB54FA9F9F59F95B55376164 /* SavedMapRegion.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

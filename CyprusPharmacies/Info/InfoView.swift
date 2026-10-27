@@ -28,7 +28,7 @@ struct InfoView: View {
                     }
                     .padding(.top, 4)
                 }
-                .padding(20)
+                .padding(Margin.content)
             }
             .navigationTitle("Duty pharmacies")
             .navigationBarTitleDisplayMode(.inline)

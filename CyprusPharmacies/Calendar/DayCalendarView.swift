@@ -27,8 +27,8 @@ struct DayCalendarView: View {
                     }
                     legend
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                .padding(.horizontal, Margin.content)
+                .padding(.bottom, Margin.content)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -37,7 +37,6 @@ struct DayCalendarView: View {
         })
         .onPreferenceChange(CalendarHeightKey.self) { onHeightChange($0) }
         .frame(maxHeight: .infinity, alignment: .top)
-        .sheetGlass()
     }
 
     private var header: some View {
@@ -55,8 +54,8 @@ struct DayCalendarView: View {
             .accessibilityLabel("Close")
         }
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
+        .padding(.horizontal, Margin.content)
+        .padding(.top, Margin.content)
         .padding(.bottom, 12)
     }
 

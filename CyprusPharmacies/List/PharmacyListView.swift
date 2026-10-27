@@ -41,8 +41,8 @@ struct PharmacyListView: View {
                                          onSelect: { onSelect(pharmacy) })
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, Margin.content)
+                    .padding(.bottom, Margin.content)
                 }
             }
         }
@@ -51,7 +51,6 @@ struct PharmacyListView: View {
                 Color(.systemGroupedBackground).ignoresSafeArea()
             }
         }
-        .sheetGlass()
     }
 
     /// The day in the middle and Close on the right, as in Maps' Directions sheet.
@@ -78,8 +77,8 @@ struct PharmacyListView: View {
             .accessibilityLabel("Close")
         }
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
+        .padding(.horizontal, Margin.content)
+        .padding(.top, Margin.content)
         .padding(.bottom, 12)
     }
 }

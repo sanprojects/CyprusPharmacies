@@ -23,7 +23,6 @@ struct MapScreen: View {
 
     @Bindable var model: MapViewModel
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
     @State private var topBarBottom: CGFloat = 0
@@ -52,7 +51,7 @@ struct MapScreen: View {
 
                 topBar
                     .frame(maxWidth: Self.topBarMaxWidth)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, Margin.screen)
                     .background(GeometryReader { proxy in
                         Color.clear.preference(key: TopBarBottomKey.self, value: proxy.frame(in: .global).maxY)
                     })
@@ -89,7 +88,6 @@ struct MapScreen: View {
                     .presentationDetents([.height(sheetHeight > 0 ? max(0, sheetHeight - root.safeAreaInsets.bottom) : 320)])
                     .presentationDragIndicator(.visible)
                     .presentationBackgroundInteraction(.enabled)
-                    .clearSheetBackground()
                 }
             }
         }
@@ -110,7 +108,6 @@ struct MapScreen: View {
                     onHeightChange: { calendarHeight = $0 }
                 )
                 .presentationDetents(calendarHeight > 0 ? [.height(calendarHeight), .large] : [.large])
-                .clearSheetBackground()
             case .list:
                 PharmacyListView(
                     title: model.dateTitle,
@@ -124,7 +121,6 @@ struct MapScreen: View {
                     }
                 )
                 .presentationDetents([.medium, .large])
-                .clearSheetBackground()
                 .task { await model.refreshUserLocation() }
             }
         }
@@ -156,7 +152,6 @@ struct MapScreen: View {
                 if hasStarted { model.refreshIfNeeded() }
             }
         }
-        .environment(\.sheetsFloat, sizeClass == .regular)
     }
 
     private var map: some View {
@@ -167,7 +162,8 @@ struct MapScreen: View {
             showsUserLocation: model.showsUserLocation,
             topInset: topBarBottom,
             onSelect: { model.select($0) },
-            onUserMove: { model.userDidMoveMap() }
+            onUserMove: { model.userDidMoveMap() },
+            onRegionChange: { model.mapRegionDidChange($0) }
         )
         .ignoresSafeArea()
     }
@@ -266,7 +262,7 @@ struct MapScreen: View {
         }
         .glassBackground(in: RoundedRectangle(cornerRadius: 12, style: .continuous), interactive: true)
         .dynamicTypeSize(...Self.chromeTextLimit)
-        .padding(.trailing, 12)
+        .padding(.trailing, Margin.screen)
         .padding(.top, topBarBottom + 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         // `topBarBottom` is global, so only the vertical insets are dropped; side insets (a status bar or camera on the side) stay.

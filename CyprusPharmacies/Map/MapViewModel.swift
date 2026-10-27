@@ -5,6 +5,7 @@
 
 import CoreLocation
 import Foundation
+import MapKit
 import Observation
 
 /// Instructions for the map view; a new `id` makes the map apply the command once.
@@ -17,12 +18,21 @@ struct MapCommand: Equatable {
         case focus(CLLocationCoordinate2D, bottomInset: CGFloat, zoomIn: Bool)
         /// Fit the user and, when known, the nearest pharmacy.
         case showUser(CLLocationCoordinate2D, nearest: CLLocationCoordinate2D?)
+        /// Where the map was left last time, zoomed out just enough to have a pharmacy of the day in it.
+        case restore(MKCoordinateRegion)
         /// The city around a point, when the user's own position is unknown.
         case showCity(CLLocationCoordinate2D)
     }
 
     let id = UUID()
     let kind: Kind
+}
+
+extension MKCoordinateRegion: @retroactive Equatable {
+    public static func == (lhs: MKCoordinateRegion, rhs: MKCoordinateRegion) -> Bool {
+        lhs.center == rhs.center
+            && lhs.span.latitudeDelta == rhs.span.latitudeDelta && lhs.span.longitudeDelta == rhs.span.longitudeDelta
+    }
 }
 
 extension CLLocationCoordinate2D: @retroactive Equatable {
@@ -58,7 +68,7 @@ final class MapViewModel {
     private(set) var isDayLoaded = false
     private(set) var isLoading = false
     private(set) var blocking: Blocking?
-    private(set) var mapCommand: MapCommand? = MapCommand(kind: .showAll)
+    private(set) var mapCommand: MapCommand?
     private(set) var showsUserLocation = false
     /// Last known position; set only once location access is granted.
     private(set) var userLocation: CLLocation?
@@ -80,6 +90,11 @@ final class MapViewModel {
     @ObservationIgnored private var zoomsToSelection = false
     /// The user panned or zoomed: the launch zoom must not take the map away from them.
     @ObservationIgnored private var userMovedMap = false
+    @ObservationIgnored private let regionStore: MapRegionStoring?
+    /// The launch view is the saved one, so the user's position is not to take the map anywhere.
+    @ObservationIgnored private let restoresRegion: Bool
+    /// The map's position is saved from the first time the user (or a tap on a pin or Locate) takes the map somewhere.
+    @ObservationIgnored private var savesRegion = false
 
     init(api: PharmacyFetching,
          cache: PharmacyCaching,
@@ -87,7 +102,8 @@ final class MapViewModel {
          reporter: LoadErrorReporting,
          location: LocationProviding,
          calendar: DutyCalendar = DutyCalendar(),
-         refreshInterval: TimeInterval = 6 * 60 * 60) {
+         refreshInterval: TimeInterval = 6 * 60 * 60,
+         regionStore: MapRegionStoring? = nil) {
         self.api = api
         self.cache = cache
         self.network = network
@@ -95,6 +111,14 @@ final class MapViewModel {
         self.location = location
         self.calendar = calendar
         self.refreshInterval = refreshInterval
+        self.regionStore = regionStore
+        if let region = regionStore?.load()?.region {
+            restoresRegion = true
+            mapCommand = MapCommand(kind: .restore(region))
+        } else {
+            restoresRegion = false
+            mapCommand = MapCommand(kind: .showAll)
+        }
         self.dayKey = calendar.todayKey
         self.showsUserLocation = location.access == .authorized
         network.onChange = { [weak self] connected in
@@ -258,7 +282,16 @@ final class MapViewModel {
 
     // MARK: - Map
 
-    func userDidMoveMap() { userMovedMap = true }
+    func userDidMoveMap() {
+        userMovedMap = true
+        savesRegion = true
+    }
+
+    /// The map came to rest: remembered for the next launch, unless it is still the launch view.
+    func mapRegionDidChange(_ region: MKCoordinateRegion) {
+        guard savesRegion else { return }
+        regionStore?.save(SavedMapRegion(region))
+    }
 
     func select(_ pharmacy: Pharmacy?, zoomIn: Bool = false) {
         selected = pharmacy
@@ -266,6 +299,7 @@ final class MapViewModel {
     }
 
     func focus(on pharmacy: Pharmacy, bottomInset: CGFloat) {
+        savesRegion = true
         mapCommand = MapCommand(kind: .focus(pharmacy.coordinate, bottomInset: bottomInset, zoomIn: zoomsToSelection))
     }
 
@@ -299,13 +333,13 @@ final class MapViewModel {
         if location.access == .authorized {
             await refreshUserLocation()
             if let here = userLocation {
-                if mayMove {
+                if mayMove && !restoresRegion {
                     mapCommand = MapCommand(kind: .showUser(here.coordinate, nearest: nearestPharmacy(to: here)?.coordinate))
                 }
                 return
             }
         }
-        guard let city = await api.ipCity(), mayMove, userLocation == nil else { return }
+        guard !restoresRegion, let city = await api.ipCity(), mayMove, userLocation == nil else { return }
         mapCommand = MapCommand(kind: .showCity(city))
     }
 
@@ -335,6 +369,7 @@ final class MapViewModel {
         }
         guard let here = await location.currentLocation() else { return }
         userLocation = here
+        savesRegion = true
         mapCommand = MapCommand(kind: .showUser(here.coordinate, nearest: nearestPharmacy(to: here)?.coordinate))
     }
 }

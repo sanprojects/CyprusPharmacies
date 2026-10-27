@@ -30,8 +30,8 @@ struct PharmacyDetailsView: View {
         VStack(spacing: 0) {
             ScrollView {
                 content
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
+                    .padding(.horizontal, Margin.content)
+                    .padding(.top, Margin.content)
                     .padding(.bottom, 8)
                     .background(GeometryReader { proxy in
                         Color.clear.preference(key: ContentHeightKey.self, value: proxy.size.height)
@@ -41,16 +41,15 @@ struct PharmacyDetailsView: View {
 
             // Outside the scroll view, so Call and Directions stay on screen whatever the text size.
             buttons
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Margin.content)
                 .padding(.top, 8)
-                .padding(.bottom, 20)
+                .padding(.bottom, Margin.content)
                 .background(GeometryReader { proxy in
                     Color.clear.preference(key: ButtonsHeightKey.self, value: proxy.size.height)
                 })
         }
         // The sheet already floats above the home indicator: its safe area would add ~30 pt under the buttons; the bottom gap equals the side gap instead.
         .ignoresSafeArea(.container, edges: .bottom)
-        .sheetGlass()
         .animation(.smooth, value: travelTime)
         // Another pharmacy in the same sheet: the text cross-fades and the rows and the sheet change size smoothly.
         .animation(.smooth, value: pharmacy.id)
